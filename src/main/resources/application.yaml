@@ -1,0 +1,14 @@
+spring:
+  application:
+    name: service_A
+  datasource:
+    url: jdbc:postgresql://localhost:5432/amazon_db
+    username: postgres
+    password: postgres
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    hibernate:
+      ddl-auto: update
+  web:
+    error:
+      include-stacktrace: never
