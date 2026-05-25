@@ -11,6 +11,10 @@ import java.util.List;
 
 
 @Service
+/* TODO el servicio hace muchas cosas e implmenta interfaces que no tiene que ver una con otra
+    Llamar a los servicios de la siguiente manera -> OrderCreator, OrderFinder (en este puedes meter el getAll y getById)
+    Eliminar las interfaces
+*/
 public class OrderService implements CreateOrderUseCase, GetAllOrdersUseCase, GetOrderUseCase {
 
     private final OrderRepositoryPort repository;
@@ -42,6 +46,7 @@ public class OrderService implements CreateOrderUseCase, GetAllOrdersUseCase, Ge
         Order order = repository.findById(id)
                 .orElseThrow(() -> new OrderNotFoundException(id));
 
+        // TODO esta logica debería ir en la capa de persistencia. OrderRepositoryPort debería devolver el Order con el Payment ya cargado
         if (order.getPayment() != null) {
             paymentRepositoryPort.findById(order.getPayment().id())
                     .ifPresent(order::setPayment);

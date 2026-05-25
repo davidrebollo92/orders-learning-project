@@ -16,6 +16,7 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/orders")
+// TODO moverlo a com.amazon.service_a.orders.infrastructure.http
 public class OrderController {
 
     private final CreateOrderUseCase createUseCase;
@@ -30,6 +31,7 @@ public class OrderController {
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
+    //TODO Usar esta clase en vez de ApiResponse -> ResponseEntity
     public ApiResponse<OrderResponse> create(@Valid @RequestBody CreateOrderRequest request) {
         OrderResponse order = OrderDtoMapper.toResponse(
                 createUseCase.createOrder(OrderDtoMapper.toDomain(request))
