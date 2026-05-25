@@ -2,6 +2,8 @@ package com.amazon.service_a.shared.infrastructure;
 
 import java.time.LocalDateTime;
 
+// TODO Esta pieza es redundante. No aporta ningun valor extra.
+// TODO para los errores tener un DTO -> ErrorDto
 public record ApiResponse<T>(
         boolean success,
         String message,

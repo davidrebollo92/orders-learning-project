@@ -11,6 +11,10 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/payments")
+/* TODO el paquete payments no es lo correcto. Para el microservicio un paymente sin order no deberia de existir por lo tanto
+ * no tiene esa identidad para permanecer fuera del orders. Todo cambio de payment se tiene que hacer a traves de un order
+ * Reestrutura esta parte
+*/
 public class PaymentController {
 
     private final GetPaymentUseCase getUseCase;

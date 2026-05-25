@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 import java.util.stream.Collectors;
 
 @RestControllerAdvice
+// TODO en shared debe estar lo generico. Si haces uso de OrderNotFoundException y PaymentNotFoundException deberian ir en sus correspondientes paquetes.
 public class GlobalExceptionHandler {
 
     @ExceptionHandler({OrderNotFoundException.class, PaymentNotFoundException.class})

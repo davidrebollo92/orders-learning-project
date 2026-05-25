@@ -11,6 +11,7 @@ import java.math.BigDecimal;
 @Table(name = "orders")
 @Getter
 @Setter
+// TODO moverlo a com.amazon.service_a.orders.infrastructure.persistence
 public class OrderEntity {
 
     @Id

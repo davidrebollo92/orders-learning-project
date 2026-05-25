@@ -10,6 +10,7 @@ import java.util.Optional;
 
 
 @Repository
+// TODO moverlo a com.amazon.service_a.orders.infrastructure.persistence
 public class OrderRepositoryAdapter implements OrderRepositoryPort {
 
     private final JpaOrderRepository jpaRepository;
