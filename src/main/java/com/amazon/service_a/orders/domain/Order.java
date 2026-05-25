@@ -8,6 +8,7 @@ import com.amazon.service_a.orders.domain.exception.InvalidOrderAmountException;
 
 @Getter
 @Setter
+// TODO por seguridad, los objetos deber ser inmutables. Cambia a public record Order y corrige los cambios
 public class Order {
     private Long id;
     private String name;

@@ -7,7 +7,8 @@ import org.springframework.stereotype.Component;
 
 import java.util.Optional;
 
-@Component("ordersPaymentRepositoryAdapter")
+@Component("ordersPaymentRepositoryAdapter") // TODO porque le pones el nombre?
+// TODO moverlo a com.amazon.service_a.payments.infrastructure.persistence
 public class PaymentRepositoryAdapter implements PaymentRepositoryPort {
 
     private final JpaPaymentRepository jpaPaymentRepository;

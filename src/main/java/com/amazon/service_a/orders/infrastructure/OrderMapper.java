@@ -4,6 +4,7 @@ import com.amazon.service_a.money.domain.Money;
 import com.amazon.service_a.orders.domain.Order;
 import com.amazon.service_a.orders.domain.Payment;
 
+// TODO moverlo a com.amazon.service_a.orders.infrastructure.persistence.mapper
 public class OrderMapper {
 
     public static OrderEntity toEntity(Order order) {
