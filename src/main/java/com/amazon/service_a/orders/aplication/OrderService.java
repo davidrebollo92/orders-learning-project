@@ -1,11 +1,11 @@
 package com.amazon.service_a.orders.aplication;
 
-import org.springframework.stereotype.Service;
-
 import com.amazon.service_a.orders.domain.Order;
+import com.amazon.service_a.orders.domain.OrderEventPublisherPort;
 import com.amazon.service_a.orders.domain.OrderRepositoryPort;
 import com.amazon.service_a.orders.domain.PaymentRepositoryPort;
 import com.amazon.service_a.orders.domain.exception.OrderNotFoundException;
+import org.springframework.stereotype.Service;
 
 import java.util.List;
 
@@ -15,15 +15,20 @@ public class OrderService implements CreateOrderUseCase, GetAllOrdersUseCase, Ge
 
     private final OrderRepositoryPort repository;
     private final PaymentRepositoryPort paymentRepositoryPort;
+    private final OrderEventPublisherPort eventPublisherPort;
 
-    public OrderService(OrderRepositoryPort repository, PaymentRepositoryPort paymentRepositoryPort) {
+    public OrderService(OrderRepositoryPort repository, PaymentRepositoryPort paymentRepositoryPort, OrderEventPublisherPort eventPublisherPort) {
         this.repository = repository;
         this.paymentRepositoryPort = paymentRepositoryPort;
+        this.eventPublisherPort = eventPublisherPort;
     }
 
     @Override
     public Order createOrder(Order order) {
-        return repository.create(order);
+        Order savedOrder = repository.create(order);
+        eventPublisherPort.publishOrderCreated(savedOrder);
+
+        return savedOrder;
     }
 
 

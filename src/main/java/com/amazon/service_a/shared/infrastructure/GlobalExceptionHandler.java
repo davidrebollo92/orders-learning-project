@@ -4,6 +4,8 @@ import com.amazon.service_a.orders.domain.exception.OrderDomainException;
 import com.amazon.service_a.orders.domain.exception.OrderNotFoundException;
 import com.amazon.service_a.payments.domain.exception.PaymentDomainException;
 import com.amazon.service_a.payments.domain.exception.PaymentNotFoundException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -15,6 +17,8 @@ import java.util.stream.Collectors;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
+
+    private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
 
     @ExceptionHandler({OrderNotFoundException.class, PaymentNotFoundException.class})
     @ResponseStatus(HttpStatus.NOT_FOUND)
@@ -40,6 +44,7 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(Exception.class)
     @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
     public ApiResponse<Void> handleUnexpected(Exception ex) {
+        log.error("Unexpected error", ex);
         return ApiResponse.error("An unexpected error occurred");
     }
 }
