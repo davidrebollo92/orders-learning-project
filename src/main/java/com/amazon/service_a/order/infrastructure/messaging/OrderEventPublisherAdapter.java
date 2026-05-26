@@ -2,19 +2,17 @@ package com.amazon.service_a.order.infrastructure.messaging;
 
 import com.amazon.service_a.order.domain.Order;
 import com.amazon.service_a.order.domain.OrderEventPublisherPort;
+import lombok.RequiredArgsConstructor;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Component;
 
 @Component
+@RequiredArgsConstructor
 public class OrderEventPublisherAdapter implements OrderEventPublisherPort {
 
     private static final String TOPIC = "orders.created";
 
     private final KafkaTemplate<String, OrderCreatedEvent> kafkaTemplate;
-
-    public OrderEventPublisherAdapter(KafkaTemplate<String, OrderCreatedEvent> kafkaTemplate) {
-        this.kafkaTemplate = kafkaTemplate;
-    }
 
     @Override
     public void publishOrderCreated(Order order) {

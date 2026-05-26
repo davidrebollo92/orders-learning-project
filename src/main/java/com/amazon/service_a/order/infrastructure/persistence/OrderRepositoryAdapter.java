@@ -3,19 +3,17 @@ package com.amazon.service_a.order.infrastructure.persistence;
 import com.amazon.service_a.order.domain.Order;
 import com.amazon.service_a.order.domain.OrderRepositoryPort;
 import com.amazon.service_a.order.infrastructure.persistence.mapper.OrderMapper;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
 import java.util.Optional;
 
 @Repository
+@RequiredArgsConstructor
 public class OrderRepositoryAdapter implements OrderRepositoryPort {
 
     private final JpaOrderRepository jpaOrderRepository;
-
-    public OrderRepositoryAdapter(JpaOrderRepository jpaOrderRepository) {
-        this.jpaOrderRepository = jpaOrderRepository;
-    }
 
     @Override
     public Order create(Order order) {

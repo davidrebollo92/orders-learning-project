@@ -3,16 +3,14 @@ package com.amazon.service_a.order.infrastructure.persistence;
 import com.amazon.service_a.order.domain.Payment;
 import com.amazon.service_a.order.domain.PaymentRepositoryPort;
 import com.amazon.service_a.order.infrastructure.persistence.mapper.PaymentMapper;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
 
 @Repository
+@RequiredArgsConstructor
 public class PaymentRepositoryAdapter implements PaymentRepositoryPort {
 
     private final JpaPaymentRepository jpaPaymentRepository;
-
-    public PaymentRepositoryAdapter(JpaPaymentRepository jpaPaymentRepository) {
-        this.jpaPaymentRepository = jpaPaymentRepository;
-    }
 
     @Override
     public Payment create(Payment payment) {
