@@ -30,62 +30,111 @@ This is a **Spring Boot 4.0.6 / Java 21** service following **Hexagonal Architec
 ### Bounded contexts
 
 ```
-orders/    — order management (create, get)
-payments/  — payment querying (get only; payments are created externally)
-money/     — Money value object shared across contexts
+order/    — order management (create, get); also owns payment data persistence
+shared/    — shared domain (Money value object, DomainException, ErrorDto)
 ```
 
-### Layer structure (identical in both contexts)
+There is no separate `payments/` bounded context. Payment data (`PaymentEntity`, `JpaPaymentRepository`) lives inside `order/infrastructure/persistence/`.
+
+### Layer structure
 
 ```
 {context}/
   domain/
-    exception/     → base domain exception (abstract) + concrete exceptions
-    *.java         → domain model + port interfaces (no Spring, no JPA)
-  aplication/      → use case interfaces (ports) + service that implements them
+    exception/     → DomainException hierarchy + error codes as string constants
+    *.java         → domain model (immutable records) + port interfaces (no Spring, no JPA)
+  aplication/      → service classes (e.g. OrderCreator, OrderFinder). No use case interfaces.
   infrastructure/
-    dto/           → request/response records + static DtoMapper
-    *.java         → REST controller, JPA entity, repository adapter, static mapper
+    http/
+      dto/         → request/response DTOs
+      mapper/      → HTTP mappers (@Component)
+      *.java       → REST controller, exception handler
+    persistence/
+      mapper/      → persistence mappers (static)
+      *.java       → JPA entities, JPA repositories, repository adapter
+    messaging/     → Kafka adapters and event DTOs
 ```
 
 Note: `aplication` is a pre-existing typo — do not rename it.
 
 ### Ports and adapters pattern
 
-Each context has two types of ports, both defined as interfaces in `domain/`:
-
-- **Driving ports** (input) — use case interfaces in `aplication/` (e.g. `GetOrderUseCase`). Controllers depend on these, never on the service class directly.
-- **Driven ports** (output) — repository ports in `domain/` (e.g. `OrderRepositoryPort`, `PaymentRepositoryPort`). Services depend on these; adapters implement them.
+- **Driving ports** (input) — controllers depend directly on service classes in `aplication/` (no use case interfaces).
+- **Driven ports** (output) — repository and event publisher ports in `domain/`. Services depend on these; adapters implement them.
 
 ```
-Controller → UseCase (interface) ← Service → RepositoryPort (interface) ← RepositoryAdapter → JpaRepository
+Controller → ServiceClass → RepositoryPort (interface) ← RepositoryAdapter → JpaRepository
+                          → EventPublisherPort (interface) ← EventPublisherAdapter → KafkaTemplate
 ```
 
-### Cross-context communication (orders → payments)
+### Order creation flow
 
-`orders` needs payment data to enrich order responses. This is handled without domain coupling:
+`OrderCreator.create()` is `@Transactional` and orchestrates the following steps atomically:
+1. Creates a `Payment` with state `CREATED` via `PaymentRepositoryPort`
+2. Builds the `Order` with that payment linked
+3. Saves the order via `OrderRepositoryPort`
+4. Publishes `OrderCreatedEvent` to Kafka topic `orders.created`
 
-- `orders/domain/PaymentRepositoryPort` — port defined by `orders`, returns `orders/domain/Payment` (a record with `id` and `state`)
-- `orders/infrastructure/PaymentRepositoryAdapter` — implements the port by accessing `payments/infrastructure/JpaPaymentRepository` directly (infrastructure-to-infrastructure, acceptable in a monolith)
-- `OrderService.getOrder()` fetches the order, then enriches it with payment data via the port if `order.getPayment()` is not null
+If any step fails, the transaction rolls back — neither the order nor the payment persist.
 
-The `orders/domain/Payment` record is a stub when loaded from DB (`state = null`). `OrderService` replaces it with the full object after calling `PaymentRepositoryPort`.
+`OrderCreatedEvent` carries `orderId`, `amount`, and `paymentId`. ServiceB consumes this event, processes the payment, and is expected to publish a `PaymentCompletedEvent` back. ServiceA will consume that event to update the payment state (not yet implemented).
+
+### Payment enrichment on reads
+
+`OrderEntity` has a `@OneToOne(fetch = FetchType.EAGER) @JoinColumn(name = "payment_id")` relationship to `PaymentEntity`. JPA loads the payment automatically on every read via a JOIN. `OrderMapper.toDomain()` converts the full `PaymentEntity` to a `Payment` domain object via `PaymentMapper` — no manual enrichment needed in the adapter.
+
+### API endpoints
+
+```
+POST   /orders       → create order (returns 201)
+GET    /orders       → list all orders (returns 200)
+GET    /orders/{id}  → get order by id (returns 200)
+```
+
+### Code style
+
+- **Blank lines between logical steps** — separate distinct steps within a method with a blank line. Group closely related lines together, separate different concerns.
+
+```java
+// correct
+Payment payment = paymentRepositoryPort.create(new Payment(null, Payment.State.CREATED));
+
+Order orderWithPayment = new Order(order.id(), order.name(), order.amount(), payment);
+Order created = orderRepositoryPort.create(orderWithPayment);
+
+eventPublisherPort.publishOrderCreated(created);
+
+return created;
+```
 
 ### Domain rules
 
-- **`orders/domain/Payment`** (record) is `orders`' own view of a payment — separate from `payments/domain/Payment` (class with enum `State`). Same name, different bounded contexts, different meaning.
-- **`Money`** is a value object (Java record). `setAmount()` on `Order` enforces the invariant that amount must be greater than zero; violations throw `InvalidOrderAmountException`.
-- **Mappers are static utility classes** — `OrderMapper` maps `Order` ↔ `OrderEntity`; `PaymentMapper` maps `Payment` ↔ `PaymentEntity`. `OrderDtoMapper` and `PaymentDtoMapper` map between domain and HTTP DTOs. These are separate concerns.
-- **DTOs** live in `infrastructure/dto/`. Domain objects are never serialized directly as API responses.
-- **Domain exceptions** follow a hierarchy: abstract base (`OrderDomainException`, `PaymentDomainException`) extended by concrete exceptions. Infrastructure can catch the base to handle all domain errors from a context uniformly.
+- **Domain objects are immutable records** — `Order`, `Payment`, `Money` are Java records. Validation happens in the compact constructor.
+- **`Money`** lives in `shared/domain/vo/`. Value object shared across contexts.
+- **`order/domain/Payment`** is `order`'s own view of a payment (id + state). It is not a separate bounded context.
+- **HTTP mappers** (`OrderDtoMapper`) are `@Component` beans injected by constructor — never static.
+- **Persistence mappers** (`OrderMapper`, `PaymentMapper`) are static utility classes in `persistence/mapper/`.
+- **DTOs** live in `infrastructure/http/dto/`. Domain objects are never serialized directly as API responses.
+- **Domain exceptions** follow a hierarchy: `DomainException` (shared) → `OrderDomainException` → concrete exceptions. Each concrete exception defines its own error code as a string constant passed to the constructor. `DomainException.getCode()` exposes it.
+- **Variable names must match the class name** in camelCase (e.g. `OrderCreator orderCreator`, `JpaOrderRepository jpaOrderRepository`).
+- **Adapter naming** — adapters are named after the domain concept, not the technology (e.g. `OrderEventPublisherAdapter`, not `KafkaOrderEventPublisherAdapter`).
+
+### Exception handling
+
+- `GlobalExceptionHandler` (shared/infrastructure) — handles `MethodArgumentNotValidException` and generic `Exception` only.
+- `OrderExceptionHandler` (order/infrastructure/http) — handles `OrderNotFoundException` and `OrderDomainException`.
+- All handlers return `ResponseEntity<ErrorDto>`. `ErrorDto` has `message` and `code` fields.
+
+### HTTP responses
+
+- Controllers return `ResponseEntity<T>` directly — no `ApiResponse` wrapper.
+- Error responses use `ErrorDto(message, code)`.
+- Success: `ResponseEntity.ok(body)` for 200, `ResponseEntity.status(HttpStatus.CREATED).body(body)` for 201.
 
 ### Infrastructure
 
-- **Database**: PostgreSQL at `localhost:5432/amazon_db` (user/pass: `postgres/postgres`)
-- **Tables**: `orders` (`OrderEntity`), `payments` (`PaymentEntity`). `orders.payment_id` is a plain `@Column` (no JPA relationship) — each context manages its own persistence independently.
-- **Messaging**: Kafka configured but not yet implemented.
+- **Database**: PostgreSQL at `localhost:5432/amazon_db` (user/pass: `postgres/postgres`). Schema managed by Hibernate DDL auto (`ddl-auto: update`).
+- **Tables**: `orders` (`OrderEntity`), `payments` (`PaymentEntity`). `orders.payment_id` is a `@OneToOne @JoinColumn` — Hibernate manages the FK constraint automatically.
+- **Messaging**: Kafka at `localhost:9092`. `OrderCreator` publishes `OrderCreatedEvent` (orderId, amount, paymentId) to topic `orders.created`. Consumer side (for `PaymentCompletedEvent`) is not yet implemented.
+- **Docker Compose**: `docker compose up -d` starts both PostgreSQL and Kafka.
 - Both `JpaOrderRepository` and `JpaPaymentRepository` use `GenerationType.IDENTITY`.
-
-### Naming note
-
-`PaymentResponse` exists in both `orders/infrastructure/dto/` and `payments/infrastructure/dto/`. They are different classes in different packages — if ever needed in the same file, use the fully qualified name for one of them.

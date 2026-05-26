@@ -1,51 +1,35 @@
 package com.amazon.service_a.shared.infrastructure;
 
-import com.amazon.service_a.orders.domain.exception.OrderDomainException;
-import com.amazon.service_a.orders.domain.exception.OrderNotFoundException;
-import com.amazon.service_a.payments.domain.exception.PaymentDomainException;
-import com.amazon.service_a.payments.domain.exception.PaymentNotFoundException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
-import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 import java.util.stream.Collectors;
 
 @RestControllerAdvice
-// TODO en shared debe estar lo generico. Si haces uso de OrderNotFoundException y PaymentNotFoundException deberian ir en sus correspondientes paquetes.
 public class GlobalExceptionHandler {
 
     private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
 
-    @ExceptionHandler({OrderNotFoundException.class, PaymentNotFoundException.class})
-    @ResponseStatus(HttpStatus.NOT_FOUND)
-    public ApiResponse<Void> handleNotFound(RuntimeException ex) {
-        return ApiResponse.error(ex.getMessage());
-    }
-
-    @ExceptionHandler({OrderDomainException.class, PaymentDomainException.class})
-    @ResponseStatus(HttpStatus.BAD_REQUEST)
-    public ApiResponse<Void> handleDomainException(RuntimeException ex) {
-        return ApiResponse.error(ex.getMessage());
-    }
-
     @ExceptionHandler(MethodArgumentNotValidException.class)
-    @ResponseStatus(HttpStatus.BAD_REQUEST)
-    public ApiResponse<Void> handleValidation(MethodArgumentNotValidException ex) {
+    public ResponseEntity<ErrorDto> handleValidation(MethodArgumentNotValidException ex) {
         String message = ex.getBindingResult().getFieldErrors().stream()
                 .map(FieldError::getDefaultMessage)
                 .collect(Collectors.joining(", "));
-        return ApiResponse.error(message);
+
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(new ErrorDto(message, "VALIDATION_ERROR"));
     }
 
     @ExceptionHandler(Exception.class)
-    @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
-    public ApiResponse<Void> handleUnexpected(Exception ex) {
+    public ResponseEntity<ErrorDto> handleUnexpected(Exception ex) {
         log.error("Unexpected error", ex);
-        return ApiResponse.error("An unexpected error occurred");
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(new ErrorDto("An unexpected error occurred", "INTERNAL_ERROR"));
     }
 }
