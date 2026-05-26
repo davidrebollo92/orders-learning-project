@@ -10,14 +10,11 @@ import org.springframework.stereotype.Service;
 public class OrderCreator {
 
     private final OrderRepositoryPort orderRepositoryPort;
-    private final PaymentRepositoryPort paymentRepositoryPort;
     private final OrderEventPublisherPort eventPublisherPort;
 
     @Transactional
     public Order create(Order order) {
-        Payment payment = paymentRepositoryPort.create(new Payment(null, Payment.State.CREATED));
-
-        Order orderWithPayment = new Order(order.id(), order.name(), order.amount(), payment);
+        Order orderWithPayment = new Order(order.id(), order.name(), order.amount(), new Payment(null, Payment.State.CREATED));
         Order created = orderRepositoryPort.create(orderWithPayment);
 
         eventPublisherPort.publishOrderCreated(created);

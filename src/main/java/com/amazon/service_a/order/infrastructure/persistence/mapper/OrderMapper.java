@@ -15,12 +15,10 @@ public class OrderMapper {
         entity.setName(order.name());
         entity.setAmount(order.amount().amount());
 
-        if (order.payment() != null) {
-            PaymentEntity paymentEntity = new PaymentEntity();
-            paymentEntity.setId(order.payment().id());
-            paymentEntity.setState(order.payment().state());
-            entity.setPayment(paymentEntity);
-        }
+        PaymentEntity paymentEntity = new PaymentEntity();
+        paymentEntity.setId(order.payment().id());
+        paymentEntity.setState(order.payment().state());
+        entity.setPayment(paymentEntity);
 
         return entity;
     }
@@ -31,7 +29,7 @@ public class OrderMapper {
                 entity.getId(),
                 entity.getName(),
                 new Money(entity.getAmount()),
-                entity.getPayment() != null ? PaymentMapper.toDomain(entity.getPayment()) : null
+                PaymentMapper.toDomain(entity.getPayment())
         );
     }
 }

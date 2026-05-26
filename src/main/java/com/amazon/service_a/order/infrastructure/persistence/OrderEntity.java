@@ -21,7 +21,7 @@ public class OrderEntity {
 
     private BigDecimal amount;
 
-    @OneToOne(fetch = FetchType.EAGER)
+    @OneToOne(fetch = FetchType.EAGER, cascade = CascadeType.ALL)
     @JoinColumn(name = "payment_id")
     private PaymentEntity payment;
 }
