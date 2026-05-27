@@ -11,6 +11,8 @@ import java.util.Optional;
 
 @Repository
 @RequiredArgsConstructor
+// TODO lo mismo del sufijo que te he dicho para los puertos
+//  aqui representa más el tipo de adaptador, por ejemplo OrderPostgresSqlRepository
 public class OrderRepositoryAdapter implements OrderRepositoryPort {
 
     private final JpaOrderRepository jpaOrderRepository;

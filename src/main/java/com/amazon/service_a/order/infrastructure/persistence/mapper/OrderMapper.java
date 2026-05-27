@@ -5,6 +5,7 @@ import com.amazon.service_a.order.infrastructure.persistence.OrderEntity;
 import com.amazon.service_a.order.infrastructure.persistence.PaymentEntity;
 import com.amazon.service_a.shared.domain.vo.Money;
 
+// TODO renombrar a OrderEntityMapper
 public class OrderMapper {
 
     public static OrderEntity toEntity(Order order) {
@@ -15,6 +16,7 @@ public class OrderMapper {
         entity.setName(order.name());
         entity.setAmount(order.amount().amount());
 
+        // TODO si haces esto no tiene sentido PaymentMapper
         PaymentEntity paymentEntity = new PaymentEntity();
         paymentEntity.setId(order.payment().id());
         paymentEntity.setState(order.payment().state());

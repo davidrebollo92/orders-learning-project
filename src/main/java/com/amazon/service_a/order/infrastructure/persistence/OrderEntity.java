@@ -14,7 +14,7 @@ import java.math.BigDecimal;
 public class OrderEntity {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @GeneratedValue(strategy = GenerationType.IDENTITY) // TODO El id debe ser un UUID generado en dominio
     private Long id;
 
     private String name;

@@ -8,6 +8,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
+
+// TODO well done, mucho mejor asi.
 @RestControllerAdvice
 public class OrderExceptionHandler {
 

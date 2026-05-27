@@ -14,6 +14,9 @@ public class OrderCreator {
 
     @Transactional
     public Order create(Order order) {
+        //TODO esto es una redFlag -> esta operativa tiene que esta en dominio
+        // metodo estático Order.create(String, Money) y en dominio te crea el Order con un pago pendiente
+        // dicho metodo lo puedes meter en OrderDtoMapper (cambiar a OrderMapper) cuando mapear de CreateOrderRequest a Order
         Order orderWithPayment = new Order(order.id(), order.name(), order.amount(), new Payment(null, Payment.State.CREATED));
         Order created = orderRepositoryPort.create(orderWithPayment);
 

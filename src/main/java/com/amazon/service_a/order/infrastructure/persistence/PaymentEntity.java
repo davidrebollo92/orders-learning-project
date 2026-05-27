@@ -12,7 +12,7 @@ import lombok.Setter;
 public class PaymentEntity {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @GeneratedValue(strategy = GenerationType.IDENTITY) // TODO El id debe ser un UUID generado en dominio
     private Long id;
 
     private Payment.State state;
