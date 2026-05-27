@@ -11,7 +11,7 @@ Proyecto de aprendizaje de **Arquitectura Hexagonal** (Puertos y Adaptadores) co
 
 ## Flujo de creación de un pedido
 
-1. `POST /orders` crea la orden y un pago en estado `CREATED` de forma atómica
+1. `POST /orders` crea la orden y un pago en estado `PENDING` de forma atómica
 2. Se publica un evento `OrderCreatedEvent` en Kafka (topic `orders.created`) con `orderId`, `amount` y `paymentId`
 3. Un servicio externo (ServiceB) consume el evento, procesa el pago y publicará `PaymentCompletedEvent`
 4. ServiceA consumirá ese evento para actualizar el estado del pago *(pendiente de implementar)*

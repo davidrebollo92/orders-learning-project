@@ -1,25 +1,26 @@
 package com.amazon.service_a.order.aplication;
 
 import com.amazon.service_a.order.domain.Order;
-import com.amazon.service_a.order.domain.OrderRepositoryPort;
+import com.amazon.service_a.order.domain.OrderRepository;
 import com.amazon.service_a.order.domain.exception.OrderNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
 public class OrderFinder {
 
-    private final OrderRepositoryPort orderRepositoryPort;
+    private final OrderRepository orderRepository;
 
     public List<Order> findAll() {
-        return orderRepositoryPort.getAll();
+        return orderRepository.getAll();
     }
 
-    public Order findById(Long id) {
-        return orderRepositoryPort.findById(id)
+    public Order findById(UUID id) {
+        return orderRepository.findById(id)
                 .orElseThrow(() -> new OrderNotFoundException(id));
     }
 }

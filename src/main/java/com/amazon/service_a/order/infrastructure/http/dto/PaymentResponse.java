@@ -1,4 +1,6 @@
 package com.amazon.service_a.order.infrastructure.http.dto;
 
-public record PaymentResponse(Long id, String state) {
+import java.util.UUID;
+
+public record PaymentResponse(UUID id, String state) {
 }

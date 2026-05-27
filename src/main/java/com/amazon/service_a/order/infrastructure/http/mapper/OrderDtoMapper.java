@@ -11,7 +11,7 @@ import org.springframework.stereotype.Component;
 public class OrderDtoMapper {
 
     public Order toDomain(CreateOrderRequest request) {
-        return new Order(null, request.name(), new Money(request.amount()), null);
+        return Order.create(request.name(), new Money(request.amount()));
     }
 
     public OrderResponse toResponse(Order order) {

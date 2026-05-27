@@ -2,36 +2,35 @@ package com.amazon.service_a.order.infrastructure.persistence.mapper;
 
 import com.amazon.service_a.order.domain.Order;
 import com.amazon.service_a.order.infrastructure.persistence.OrderEntity;
-import com.amazon.service_a.order.infrastructure.persistence.PaymentEntity;
 import com.amazon.service_a.shared.domain.vo.Money;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Component;
 
-// TODO renombrar a OrderEntityMapper
-public class OrderMapper {
+@Component
+@RequiredArgsConstructor
+public class OrderEntityMapper {
 
-    public static OrderEntity toEntity(Order order) {
+    private final PaymentEntityMapper paymentEntityMapper;
+
+    public OrderEntity toEntity(Order order) {
 
         OrderEntity entity = new OrderEntity();
 
         entity.setId(order.id());
         entity.setName(order.name());
         entity.setAmount(order.amount().amount());
-
-        // TODO si haces esto no tiene sentido PaymentMapper
-        PaymentEntity paymentEntity = new PaymentEntity();
-        paymentEntity.setId(order.payment().id());
-        paymentEntity.setState(order.payment().state());
-        entity.setPayment(paymentEntity);
+        entity.setPayment(paymentEntityMapper.toEntity(order.payment()));
 
         return entity;
     }
 
-    public static Order toDomain(OrderEntity entity) {
+    public Order toDomain(OrderEntity entity) {
 
         return new Order(
                 entity.getId(),
                 entity.getName(),
                 new Money(entity.getAmount()),
-                PaymentMapper.toDomain(entity.getPayment())
+                paymentEntityMapper.toDomain(entity.getPayment())
         );
     }
 }

@@ -5,6 +5,8 @@ import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
 
+import java.util.UUID;
+
 @Entity
 @Table(name = "payments")
 @Getter
@@ -12,8 +14,7 @@ import lombok.Setter;
 public class PaymentEntity {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY) // TODO El id debe ser un UUID generado en dominio
-    private Long id;
+    private UUID id;
 
     private Payment.State state;
 }

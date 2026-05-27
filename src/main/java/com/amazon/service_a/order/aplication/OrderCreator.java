@@ -1,6 +1,8 @@
 package com.amazon.service_a.order.aplication;
 
-import com.amazon.service_a.order.domain.*;
+import com.amazon.service_a.order.domain.Order;
+import com.amazon.service_a.order.domain.OrderEventPublisher;
+import com.amazon.service_a.order.domain.OrderRepository;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -9,18 +11,14 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 public class OrderCreator {
 
-    private final OrderRepositoryPort orderRepositoryPort;
-    private final OrderEventPublisherPort eventPublisherPort;
+    private final OrderRepository orderRepository;
+    private final OrderEventPublisher orderEventPublisher;
 
     @Transactional
     public Order create(Order order) {
-        //TODO esto es una redFlag -> esta operativa tiene que esta en dominio
-        // metodo estático Order.create(String, Money) y en dominio te crea el Order con un pago pendiente
-        // dicho metodo lo puedes meter en OrderDtoMapper (cambiar a OrderMapper) cuando mapear de CreateOrderRequest a Order
-        Order orderWithPayment = new Order(order.id(), order.name(), order.amount(), new Payment(null, Payment.State.CREATED));
-        Order created = orderRepositoryPort.create(orderWithPayment);
+        Order created = orderRepository.create(order);
 
-        eventPublisherPort.publishOrderCreated(created);
+        orderEventPublisher.publishOrderCreated(created);
 
         return created;
     }

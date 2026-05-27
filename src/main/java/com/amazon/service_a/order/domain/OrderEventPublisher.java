@@ -1,5 +1,5 @@
 package com.amazon.service_a.order.domain;
 
-public interface OrderEventPublisherPort {
+public interface OrderEventPublisher {
     void publishOrderCreated(Order order);
 }

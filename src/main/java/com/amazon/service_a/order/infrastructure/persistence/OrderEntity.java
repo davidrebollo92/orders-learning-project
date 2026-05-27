@@ -5,6 +5,7 @@ import lombok.Getter;
 import lombok.Setter;
 
 import java.math.BigDecimal;
+import java.util.UUID;
 
 
 @Entity
@@ -14,8 +15,7 @@ import java.math.BigDecimal;
 public class OrderEntity {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY) // TODO El id debe ser un UUID generado en dominio
-    private Long id;
+    private UUID id;
 
     private String name;
 
