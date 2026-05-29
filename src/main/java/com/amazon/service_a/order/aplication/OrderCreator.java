@@ -3,7 +3,7 @@ package com.amazon.service_a.order.aplication;
 import com.amazon.service_a.order.domain.Order;
 import com.amazon.service_a.order.domain.OrderEventPublisher;
 import com.amazon.service_a.order.domain.OrderRepository;
-import jakarta.transaction.Transactional;
+import org.springframework.transaction.annotation.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 

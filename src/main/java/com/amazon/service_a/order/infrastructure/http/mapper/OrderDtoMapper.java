@@ -15,11 +15,9 @@ public class OrderDtoMapper {
     }
 
     public OrderResponse toResponse(Order order) {
-        PaymentResponse paymentResponse = order.payment() != null
-                ? new PaymentResponse(
+        PaymentResponse paymentResponse = new PaymentResponse(
                 order.payment().id(),
-                order.payment().state().name())
-                : null;
+                order.payment().state().name());
 
         return new OrderResponse(
                 order.id(),

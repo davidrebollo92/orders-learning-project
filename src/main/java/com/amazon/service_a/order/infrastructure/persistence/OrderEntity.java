@@ -23,5 +23,5 @@ public class OrderEntity {
 
     @OneToOne(fetch = FetchType.EAGER, cascade = CascadeType.ALL)
     @JoinColumn(name = "payment_id")
-    private PaymentEntity payment;
+    private OrderPaymentEntity payment;
 }

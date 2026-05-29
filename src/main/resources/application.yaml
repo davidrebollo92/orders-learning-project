@@ -1,3 +1,8 @@
+app:
+  kafka:
+    topics:
+      orders: amazon.env.order-management.orders.pub
+      payments: amazon.env.order-management.payments.pub
 spring:
   application:
     name: service_A
@@ -11,6 +16,15 @@ spring:
     producer:
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
       value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+      properties:
+        spring.json.type.mapping: orderCreated:com.amazon.service_a.order.infrastructure.messaging.OrderCreatedEvent,paymentCompleted:com.amazon.service_a.payment.infrastructure.messaging.PaymentCompletedEvent
+    consumer:
+      group-id: payment-processor
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      properties:
+        spring.json.trusted.packages: com.amazon.service_a.order.infrastructure.messaging,com.amazon.service_a.payment.infrastructure.messaging
+        spring.json.type.mapping: orderCreated:com.amazon.service_a.payment.infrastructure.messaging.OrderCreatedEvent,paymentCompleted:com.amazon.service_a.order.infrastructure.messaging.PaymentCompletedEvent
   jpa:
     hibernate:
       ddl-auto: update

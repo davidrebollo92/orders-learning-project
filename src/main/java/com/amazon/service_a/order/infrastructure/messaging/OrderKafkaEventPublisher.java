@@ -2,6 +2,7 @@ package com.amazon.service_a.order.infrastructure.messaging;
 
 import com.amazon.service_a.order.domain.Order;
 import com.amazon.service_a.order.domain.OrderEventPublisher;
+import com.amazon.service_a.shared.infrastructure.messaging.KafkaTopicsConfig;
 import lombok.RequiredArgsConstructor;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Component;
@@ -10,9 +11,8 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 public class OrderKafkaEventPublisher implements OrderEventPublisher {
 
-    private static final String TOPIC = "amazon.env.order-management.orders.pub";
-
     private final KafkaTemplate<String, OrderCreatedEvent> kafkaTemplate;
+    private final KafkaTopicsConfig kafkaTopicsConfig;
 
     @Override
     public void publishOrderCreated(Order order) {
@@ -22,6 +22,6 @@ public class OrderKafkaEventPublisher implements OrderEventPublisher {
                 order.payment().id()
         );
 
-        kafkaTemplate.send(TOPIC, order.id().toString(), event);
+        kafkaTemplate.send(kafkaTopicsConfig.getOrders(), order.id().toString(), event);
     }
 }
