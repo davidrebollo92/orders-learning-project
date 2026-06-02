@@ -1,4 +1,4 @@
-package com.amazon.service_a.shared.infrastructure.messaging;
+package com.amazon.service_boot.core.infrastructure.messaging;
 
 import lombok.Getter;
 import lombok.Setter;

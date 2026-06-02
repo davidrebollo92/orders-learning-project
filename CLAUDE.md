@@ -15,7 +15,18 @@ amazon/
 
 ## Commands
 
-Run from each service directory (`service_a/` or `service_b/`):
+From the **repo root** (`amazon/`):
+
+```bash
+# Instalar todos los módulos en el repositorio local de Maven
+# (necesario la primera vez y cada vez que se modifique service_boot)
+./service_a/mvnw install -DskipTests
+
+# Infraestructura (PostgreSQL × 2 + Kafka)
+docker compose up -d
+```
+
+From each service directory (`service_a/` or `service_b/`):
 
 ```bash
 # Build
@@ -29,12 +40,6 @@ Run from each service directory (`service_a/` or `service_b/`):
 
 # Compile without running tests
 ./mvnw compile
-```
-
-Start infrastructure (PostgreSQL × 2 + Kafka):
-
-```bash
-docker compose up -d
 ```
 
 ## Architecture

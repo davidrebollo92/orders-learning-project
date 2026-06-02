@@ -3,7 +3,7 @@ package com.amazon.service_b.payment.infrastructure.messaging;
 import com.amazon.service_b.payment.aplication.PaymentProcessor;
 import com.amazon.service_b.payment.domain.Payment;
 import com.amazon.service_b.payment.domain.exception.PaymentAlreadyPaidException;
-import com.amazon.service_b.shared.domain.vo.Money;
+import com.amazon.service_boot.core.domain.vo.Money;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

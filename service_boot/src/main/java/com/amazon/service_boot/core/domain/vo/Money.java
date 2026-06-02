@@ -1,4 +1,4 @@
-package com.amazon.service_a.shared.domain.vo;
+package com.amazon.service_boot.core.domain.vo;
 
 import java.math.BigDecimal;
 

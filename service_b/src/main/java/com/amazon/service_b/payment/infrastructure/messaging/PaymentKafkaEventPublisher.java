@@ -2,7 +2,7 @@ package com.amazon.service_b.payment.infrastructure.messaging;
 
 import com.amazon.service_b.payment.domain.Payment;
 import com.amazon.service_b.payment.domain.PaymentEventPublisher;
-import com.amazon.service_b.shared.infrastructure.messaging.KafkaTopicsConfig;
+import com.amazon.service_boot.core.infrastructure.messaging.KafkaTopicsConfig;
 import lombok.RequiredArgsConstructor;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Component;

@@ -1,4 +1,4 @@
-package com.amazon.service_a.shared.domain.exception;
+package com.amazon.service_boot.core.domain.exception;
 
 public abstract class DomainException extends RuntimeException {
 

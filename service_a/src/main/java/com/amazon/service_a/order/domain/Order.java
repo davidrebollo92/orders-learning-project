@@ -1,7 +1,7 @@
 package com.amazon.service_a.order.domain;
 
 import com.amazon.service_a.order.domain.exception.InvalidOrderAmountException;
-import com.amazon.service_a.shared.domain.vo.Money;
+import com.amazon.service_boot.core.domain.vo.Money;
 import lombok.AccessLevel;
 import lombok.Builder;
 

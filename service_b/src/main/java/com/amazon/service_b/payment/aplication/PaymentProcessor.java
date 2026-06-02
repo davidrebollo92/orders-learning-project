@@ -5,7 +5,7 @@ import com.amazon.service_b.payment.domain.PaymentEventPublisher;
 import com.amazon.service_b.payment.domain.PaymentRepository;
 import com.amazon.service_b.payment.domain.Transaction;
 import com.amazon.service_b.payment.domain.exception.PaymentAlreadyPaidException;
-import com.amazon.service_b.shared.domain.vo.Money;
+import com.amazon.service_boot.core.domain.vo.Money;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;

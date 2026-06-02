@@ -1,6 +1,6 @@
 package com.amazon.service_b.payment.domain.exception;
 
-import com.amazon.service_b.shared.domain.exception.DomainException;
+import com.amazon.service_boot.core.domain.exception.DomainException;
 
 public abstract class PaymentDomainException extends DomainException {
 

@@ -1,6 +1,6 @@
 package com.amazon.service_a.order.infrastructure.messaging;
 
-import com.amazon.service_a.shared.infrastructure.messaging.KafkaTopicsConfig;
+import com.amazon.service_boot.core.infrastructure.messaging.KafkaTopicsConfig;
 import lombok.RequiredArgsConstructor;
 import org.apache.kafka.clients.admin.NewTopic;
 import org.springframework.context.annotation.Bean;

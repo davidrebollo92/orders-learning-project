@@ -1,6 +1,6 @@
 package com.amazon.service_b.payment.domain;
 
-import com.amazon.service_b.shared.domain.vo.Money;
+import com.amazon.service_boot.core.domain.vo.Money;
 
 import java.util.UUID;
 

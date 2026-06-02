@@ -1,6 +1,6 @@
 package com.amazon.service_a.order.domain.exception;
 
-import com.amazon.service_a.shared.domain.exception.DomainException;
+import com.amazon.service_boot.core.domain.exception.DomainException;
 
 public abstract class OrderDomainException extends DomainException {
 

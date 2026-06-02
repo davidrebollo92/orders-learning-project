@@ -2,7 +2,7 @@ package com.amazon.service_a.order.infrastructure.messaging;
 
 import com.amazon.service_a.order.domain.Order;
 import com.amazon.service_a.order.domain.OrderEventPublisher;
-import com.amazon.service_a.shared.infrastructure.messaging.KafkaTopicsConfig;
+import com.amazon.service_boot.core.infrastructure.messaging.KafkaTopicsConfig;
 import lombok.RequiredArgsConstructor;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Component;

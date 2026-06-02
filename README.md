@@ -24,6 +24,10 @@ Monorepo con dos servicios Spring Boot (Java 21 / Spring Boot 4.0.6):
 # Infraestructura (PostgreSQL × 2 + Kafka)
 docker compose up -d
 
+# Instalar módulos en el repositorio local (necesario la primera vez
+# y cada vez que se modifique service_boot)
+./service_a/mvnw install -DskipTests
+
 # service_a (puerto 8080)
 cd service_a && ./mvnw spring-boot:run
 
