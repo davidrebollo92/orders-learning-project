@@ -19,7 +19,7 @@ spring:
       properties:
         spring.json.type.mapping: orderCreated:com.amazon.service_a.order.infrastructure.messaging.OrderCreatedEvent
     consumer:
-      group-id: payment-processor
+      group-id: order-management
       key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
       value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
       properties:

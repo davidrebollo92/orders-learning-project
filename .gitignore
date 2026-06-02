@@ -42,7 +42,3 @@
 ### OS ###
 .DS_Store
 Thumbs.db
-
-### Local dev ###
-Makefile
-logs/

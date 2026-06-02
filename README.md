@@ -22,17 +22,10 @@ Proyecto Maven multi-módulo con tres módulos (Java 21 / Spring Boot 4.0.6):
 ## Arrancar
 
 ```bash
-# 1. Infraestructura (PostgreSQL × 2 + Kafka)
 docker compose up -d
-
-# 2. Instalar módulos en el repositorio local de Maven
-#    (necesario la primera vez y tras cualquier cambio en service_boot)
-./mvnw install -DskipTests
-
-# 3. Arrancar cada servicio (en terminales separadas)
-cd service_a && ./mvnw spring-boot:run
-cd service_b && ./mvnw spring-boot:run
 ```
+
+Los servicios se construyen y arrancan automáticamente junto con la infraestructura (PostgreSQL × 2 + Kafka).
 
 ## Endpoints (service_a)
 

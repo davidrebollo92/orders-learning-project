@@ -8,16 +8,30 @@ This is a **Maven multi-module monorepo** with three modules:
 
 ```
 amazon/
-  pom.xml        — aggregator raíz (hereda de spring-boot-starter-parent)
-  service_boot/  — librería compartida (jar); Money, DomainException, KafkaTopicsConfig
-  service_a/     — order management service (HTTP API + Kafka producer/consumer)
-  service_b/     — payment processing service (Kafka consumer/producer)
-  docker-compose.yml
+  pom.xml                — aggregator raíz (hereda de spring-boot-starter-parent)
+  docker-compose.yml     — infraestructura + servicios Java (stack completo)
+  service_boot/          — librería compartida (jar); Money, DomainException, KafkaTopicsConfig
+  service_a/
+    Dockerfile           — build multi-stage; contexto de build = raíz
+  service_b/
+    Dockerfile           — build multi-stage; contexto de build = raíz
 ```
 
 `service_a` y `service_b` dependen de `service_boot`. Tras cualquier cambio en `service_boot` hay que reinstalar desde la raíz (`./service_a/mvnw install -DskipTests`) para que los servicios lo resuelvan.
 
 ## Commands
+
+### Stack completo (recomendado)
+
+```bash
+# Arrancar toda la infraestructura + servicios (construye las imágenes si no existen)
+docker compose up -d
+
+# Reconstruir imágenes tras cambios en el código
+docker compose up -d --build
+```
+
+### Desarrollo local (fuera de Docker)
 
 From the **repo root** (`amazon/`):
 
@@ -26,8 +40,8 @@ From the **repo root** (`amazon/`):
 # (necesario la primera vez y cada vez que se modifique service_boot)
 ./mvnw install -DskipTests
 
-# Infraestructura (PostgreSQL × 2 + Kafka)
-docker compose up -d
+# Solo infraestructura (PostgreSQL × 2 + Kafka), sin los servicios Java
+docker compose up -d postgres-service-a postgres-service-b kafka
 ```
 
 From each service directory (`service_a/` or `service_b/`):
@@ -224,13 +238,13 @@ DomainException (service_boot)
 ### Infrastructure
 
 - **Databases** (one per service):
-  - `service_a_db` — PostgreSQL at `localhost:5432` (user/pass: `postgres/postgres`)
-  - `service_b_db` — PostgreSQL at `localhost:5433` (user/pass: `postgres/postgres`)
+  - `service_a_db` — PostgreSQL at `localhost:5432` (host) / `amazon-postgres-service-a:5432` (Docker) — user/pass: `postgres/postgres`
+  - `service_b_db` — PostgreSQL at `localhost:5433` (host) / `amazon-postgres-service-b:5432` (Docker) — user/pass: `postgres/postgres`
 - **Tables**:
   - `orders` → `OrderEntity` (service_a, order context)
   - `payments` → `OrderPaymentEntity` (service_a, order context, cascade from `orders`)
   - `processed_payments` → `PaymentEntity` (service_b, payment context)
   - `transactions` → `TransactionEntity` (service_b, payment context, cascade from `processed_payments`)
   - All primary keys are `UUID` — no `@GeneratedValue`.
-- **Messaging**: Kafka at `localhost:9092`. Topics configured via `app.kafka.topics` in `KafkaTopicsConfig` (`@ConfigurationProperties` + `@Component`). Topics are auto-created on startup.
+- **Messaging**: Kafka at `localhost:9092` (host) / `kafka:19092` (Docker). Topics configured via `app.kafka.topics` in `KafkaTopicsConfig` (`@ConfigurationProperties` + `@Component`). Topics are auto-created on startup.
 - **Schema**: managed by Hibernate `ddl-auto: update`.
