@@ -4,14 +4,18 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Structure
 
-This is a **monorepo** with two Spring Boot services:
+This is a **Maven multi-module monorepo** with three modules:
 
 ```
 amazon/
-  service_a/   — order management service (HTTP API + Kafka producer/consumer)
-  service_b/   — payment processing service (Kafka consumer/producer)
+  pom.xml        — aggregator raíz (hereda de spring-boot-starter-parent)
+  service_boot/  — librería compartida (jar); Money, DomainException, KafkaTopicsConfig
+  service_a/     — order management service (HTTP API + Kafka producer/consumer)
+  service_b/     — payment processing service (Kafka consumer/producer)
   docker-compose.yml
 ```
+
+`service_a` y `service_b` dependen de `service_boot`. Tras cualquier cambio en `service_boot` hay que reinstalar desde la raíz (`./service_a/mvnw install -DskipTests`) para que los servicios lo resuelvan.
 
 ## Commands
 
@@ -46,13 +50,24 @@ From each service directory (`service_a/` or `service_b/`):
 
 Both services follow **Hexagonal Architecture** (Ports and Adapters) with **DDD bounded contexts**, built on **Spring Boot 4.0.6 / Java 21**.
 
+### service_boot — Shared library
+
+```
+core/
+  domain/vo/Money.java                          — value object compartido
+  domain/exception/DomainException.java         — base de todas las excepciones de dominio
+  infrastructure/messaging/KafkaTopicsConfig.java — configuración de topics Kafka
+```
+
+Paquete base: `com.amazon.service_boot.core`. No tiene `main` ni `application.yaml` — es una librería jar pura.
+
 ### service_a — Order management
 
 Bounded contexts:
 ```
 order/    — order creation and query; owns `orders` and `payments` tables via JPA cascade
             Payment is part of this context (order/domain/Payment), not a separate bounded context
-shared/   — Money value object, DomainException, ErrorDto, KafkaTopicsConfig
+shared/   — ErrorDto, GlobalExceptionHandler (específicos de service_a, no en service_boot)
 ```
 
 API endpoints:
@@ -67,7 +82,6 @@ GET    /orders/{id}  → get order by id (returns 200)
 Bounded contexts:
 ```
 payment/  — payment processing aggregate; owns `processed_payments` and `transactions` tables
-shared/   — Money value object, DomainException, KafkaTopicsConfig
 ```
 
 No HTTP endpoints — fully event-driven.
@@ -166,7 +180,7 @@ return created;
 - **`@Builder(toBuilder = true)`** — all domain records with `@Builder` use `toBuilder = true`. Mutation methods (e.g. `pay()`, `completePayment()`) must use `toBuilder()` to copy existing fields and only override what changes. Never use `builder()` from within a mutation method.
 - **`Order.create(String name, Money amount)`** — static factory. Creates an `Order` with a linked `Payment` in state `PENDING`.
 - **`payment/domain/Payment.create(UUID id, UUID orderId)`** — factory for new payments in `PENDING` state (service_b).
-- **`Money`** lives in `shared/domain/vo/`. `isBelowMinimum()` returns `boolean`. Do not duplicate minimum-amount validation in DTOs.
+- **`Money`** lives in `service_boot/core/domain/vo/`. `isBelowMinimum()` returns `boolean`. Do not duplicate minimum-amount validation in DTOs.
 - **HTTP mappers** and **persistence mappers** are `@Component` beans injected by constructor — never static.
 - **DTOs** live in `infrastructure/http/dto/`. Domain objects are never serialized directly as API responses.
 - **Variable names must match the class name** in camelCase (e.g. `OrderCreator orderCreator`).
@@ -177,8 +191,11 @@ return created;
 ### Exception hierarchies
 
 ```
+# service_boot (base)
+DomainException (core/domain/exception)
+
 # service_a
-DomainException (shared)
+DomainException (service_boot)
   └── OrderDomainException (order)
         ├── OrderNotFoundException
         ├── InvalidOrderAmountException
@@ -186,7 +203,7 @@ DomainException (shared)
         └── PaymentAlreadyPaidException
 
 # service_b
-DomainException (shared)
+DomainException (service_boot)
   └── PaymentDomainException (payment)
         ├── PaymentAlreadyPaidException
         └── InvalidPaymentStateException
@@ -194,7 +211,7 @@ DomainException (shared)
 
 ### Exception handling (service_a)
 
-- `GlobalExceptionHandler` (shared/infrastructure) — handles `MethodArgumentNotValidException` and generic `Exception`.
+- `GlobalExceptionHandler` (service_a/shared/infrastructure) — handles `MethodArgumentNotValidException` and generic `Exception`.
 - `OrderExceptionHandler` (order/infrastructure/http) — handles `OrderNotFoundException` (404) and `OrderDomainException` (400).
 - All handlers return `ResponseEntity<ErrorDto>`. `ErrorDto` has `message` and `code` fields.
 
