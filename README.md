@@ -27,7 +27,7 @@ docker compose up -d
 
 # 2. Instalar módulos en el repositorio local de Maven
 #    (necesario la primera vez y tras cualquier cambio en service_boot)
-./service_a/mvnw install -DskipTests
+./mvnw install -DskipTests
 
 # 3. Arrancar cada servicio (en terminales separadas)
 cd service_a && ./mvnw spring-boot:run
