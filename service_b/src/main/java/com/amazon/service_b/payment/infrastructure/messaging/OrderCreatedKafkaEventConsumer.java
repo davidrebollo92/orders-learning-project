@@ -7,7 +7,11 @@ import com.amazon.service_boot.core.domain.vo.Money;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.kafka.annotation.BackOff;
+import org.springframework.kafka.annotation.DltHandler;
 import org.springframework.kafka.annotation.KafkaListener;
+import org.springframework.kafka.annotation.RetryableTopic;
+import org.springframework.kafka.retrytopic.TopicSuffixingStrategy;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -18,6 +22,11 @@ public class OrderCreatedKafkaEventConsumer {
 
     private final PaymentProcessor paymentProcessor;
 
+    @RetryableTopic(
+            attempts = "3",
+            backOff = @BackOff(delay = 1000, multiplier = 2.0),
+            topicSuffixingStrategy = TopicSuffixingStrategy.SUFFIX_WITH_INDEX_VALUE
+    )
     @KafkaListener(topics = "#{@kafkaTopicsConfig.orders}", groupId = "payment-processor")
     public void consume(OrderCreatedEvent event) {
         try {
@@ -28,5 +37,10 @@ public class OrderCreatedKafkaEventConsumer {
         } catch (PaymentAlreadyPaidException ex) {
             log.warn("Duplicate OrderCreatedEvent received: {}", ex.getMessage());
         }
+    }
+
+    @DltHandler
+    public void handleDlt(OrderCreatedEvent event) {
+        log.error("DLT: OrderCreatedEvent could not be processed after retries: {}", event);
     }
 }
