@@ -3,6 +3,7 @@ package com.amazon.service_a.order.aplication;
 import com.amazon.service_a.order.domain.Order;
 import com.amazon.service_a.order.domain.OrderRepository;
 import com.amazon.service_a.order.domain.exception.OrderNotFoundException;
+import com.amazon.service_a.order.domain.exception.PaymentAlreadyPaidException;
 import com.amazon.service_a.order.domain.exception.PaymentNotFoundException;
 import com.amazon.service_boot.core.domain.vo.Money;
 import org.junit.jupiter.api.Test;
@@ -55,5 +56,14 @@ class PaymentCompleterTest {
 
         assertThatThrownBy(() -> paymentCompleter.complete(order.id(), UUID.randomUUID()))
                 .isInstanceOf(PaymentNotFoundException.class);
+    }
+
+    @Test
+    void complete_throwsPaymentAlreadyPaidException_whenPaymentAlreadyPaid() {
+        Order order = Order.create("laptop", new Money(new BigDecimal("10.00"))).addPayment().completePayment();
+        when(orderRepository.findById(order.id())).thenReturn(Optional.of(order));
+
+        assertThatThrownBy(() -> paymentCompleter.complete(order.id(), order.payment().id()))
+                .isInstanceOf(PaymentAlreadyPaidException.class);
     }
 }

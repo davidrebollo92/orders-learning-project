@@ -95,7 +95,7 @@ GET    /orders/{id}  → get order by id (returns 200)
 
 Bounded contexts:
 ```
-payment/  — payment processing aggregate; owns `processed_payments` and `transactions` tables
+payment/  — payment processing aggregate; owns `payments` and `transactions` tables
 ```
 
 No HTTP endpoints — fully event-driven.
@@ -130,12 +130,12 @@ Note: `aplication` is a pre-existing typo — do not rename it.
 # service_a
 Controller → ServiceClass → OrderRepository (interface) ← OrderPostgreSqlRepository → JpaOrderRepository
                                                                                       → JpaOrderPaymentRepository
-           → OrderEventPublisher (interface) ← OrderKafkaEventPublisher → KafkaTemplate
+           → OrderEventPublisher (interface) ← OrderOutboxEventPublisher → JpaOutboxEventRepository
 KafkaConsumer → PaymentCompleter → OrderRepository
 
 # service_b
 KafkaConsumer → PaymentProcessor → PaymentRepository (interface) ← PaymentPostgreSqlRepository → JpaPaymentRepository
-                                 → PaymentEventPublisher (interface) ← PaymentKafkaEventPublisher → KafkaTemplate
+                                 → PaymentEventPublisher (interface) ← PaymentOutboxEventPublisher → JpaOutboxEventRepository
 ```
 
 ### Event-driven flow
@@ -144,14 +144,20 @@ KafkaConsumer → PaymentProcessor → PaymentRepository (interface) ← Payment
 POST /orders (service_a)
   → OrderCreator
       → saves Order + Payment (PENDING) via JPA cascade → `orders` + `payments` tables
-      → publishes OrderCreatedEvent → Kafka topic `orders`
+      → OrderOutboxEventPublisher.publishOrderCreated()
+          → saves OrderCreatedEvent to `outbox_events` table (same transaction)
+  → OutboxScheduler (every 1s)
+      → reads unpublished outbox_events, sends to Kafka topic `orders`, marks published
 
 OrderCreatedKafkaEventConsumer (service_b)
   → PaymentProcessor
-      → idempotency check: if payment already in `processed_payments` → log warn, discard
+      → idempotency check: if payment already in `payments` → throw PaymentAlreadyPaidException → log warn, discard
       → creates Transaction, pays Payment
-      → saves Payment (PAID) + Transaction → `processed_payments` + `transactions` tables
-      → publishes PaymentCompletedEvent → Kafka topic `payments`
+      → saves Payment (PAID) + Transaction → `payments` + `transactions` tables
+      → PaymentOutboxEventPublisher.publishPaymentCompleted()
+          → saves PaymentCompletedEvent to `outbox_events` table (same transaction)
+  → OutboxScheduler (every 1s)
+      → reads unpublished outbox_events, sends to Kafka topic `payments`, marks published
 
 PaymentCompletedKafkaEventConsumer (service_a)
   → PaymentCompleter
@@ -161,6 +167,15 @@ PaymentCompletedKafkaEventConsumer (service_a)
       → calls orderRepository.updatePayment() → JpaOrderPaymentRepository.updateState() → UPDATE `payments` SET state=PAID
 ```
 
+### Outbox Pattern
+
+Both services use the **Transactional Outbox Pattern** to guarantee event publishing:
+
+- `OrderOutboxEventPublisher` / `PaymentOutboxEventPublisher` — implement the domain port by saving the event as a row in `outbox_events` within the same transaction as the business operation. No direct Kafka write from the service.
+- `OutboxEventEntity` — JPA entity (`outbox_events` table) with fields: `id`, `aggregateId`, `topic`, `payload` (JSON), `occurredAt`, `publishedAt` (null until sent).
+- `OutboxScheduler` — `@Scheduled(fixedDelay = 1000)`. Queries `findByPublishedAtIsNull()`, sends each event via `KafkaTemplate`, then sets `publishedAt`. Runs in both services independently.
+- `KafkaOutboxConfig` — defines the `@Bean("outboxKafkaTemplate")` with `StringSerializer` for key and value.
+
 ### Kafka event DTOs
 
 Each service defines its own local event DTOs — no cross-service imports:
@@ -169,10 +184,12 @@ Each service defines its own local event DTOs — no cross-service imports:
 
 ### Kafka error handling
 
-Kafka consumers catch known domain exceptions and log them without retrying:
+Consumers use `@RetryableTopic` (3 attempts, exponential backoff 1s×2) with a `@DltHandler` for unrecoverable failures.
+
+Within each attempt, known domain exceptions are caught and not retried:
 - Duplicate event (`PaymentAlreadyPaidException`) → `log.warn`, discard.
 - Payment/order not found (`PaymentNotFoundException`, `OrderNotFoundException`) → `log.error`, discard.
-- Any other exception propagates to Kafka for retry.
+- Any other exception propagates so `@RetryableTopic` retries it up to 3 times, then routes to DLT.
 
 ### Code style
 
@@ -192,14 +209,14 @@ return created;
 - **Domain objects are immutable records** — `Order`, `Payment`, `Transaction`, `Money` are Java records.
 - **UUIDs generated in domain** — factory methods call `UUID.randomUUID()`. No `@GeneratedValue` in JPA entities.
 - **`@Builder(toBuilder = true)`** — all domain records with `@Builder` use `toBuilder = true`. Mutation methods (e.g. `pay()`, `completePayment()`) must use `toBuilder()` to copy existing fields and only override what changes. Never use `builder()` from within a mutation method.
-- **`Order.create(String name, Money amount)`** — static factory. Creates an `Order` with a linked `Payment` in state `PENDING`.
+- **`Order.create(String name, Money amount)`** — static factory. Creates an `Order` with `payment = null`. Call `addPayment()` to attach a `Payment` in `PENDING` state before persisting.
 - **`payment/domain/Payment.create(UUID id, UUID orderId)`** — factory for new payments in `PENDING` state (service_b).
 - **`Money`** lives in `service_boot/core/domain/vo/`. `isBelowMinimum()` returns `boolean`. Do not duplicate minimum-amount validation in DTOs.
 - **HTTP mappers** and **persistence mappers** are `@Component` beans injected by constructor — never static.
 - **DTOs** live in `infrastructure/http/dto/`. Domain objects are never serialized directly as API responses.
 - **Variable names must match the class name** in camelCase (e.g. `OrderCreator orderCreator`).
 - **Port naming** — domain interfaces have no suffix (e.g. `OrderRepository`, `PaymentEventPublisher`).
-- **Adapter naming** — adapters include the technology (e.g. `OrderPostgreSqlRepository`, `PaymentKafkaEventPublisher`).
+- **Adapter naming** — adapters include the technology (e.g. `OrderPostgreSqlRepository`, `PaymentOutboxEventPublisher`).
 - **`@Transactional`** — always use `org.springframework.transaction.annotation.Transactional`, never `jakarta.transaction.Transactional`.
 
 ### Exception hierarchies
@@ -243,8 +260,10 @@ DomainException (service_boot)
 - **Tables**:
   - `orders` → `OrderEntity` (service_a, order context)
   - `payments` → `OrderPaymentEntity` (service_a, order context, cascade from `orders`)
-  - `processed_payments` → `PaymentEntity` (service_b, payment context)
-  - `transactions` → `TransactionEntity` (service_b, payment context, cascade from `processed_payments`)
+  - `outbox_events` → `OutboxEventEntity` (service_a, order context)
+  - `payments` → `PaymentEntity` (service_b, payment context; different database from service_a)
+  - `transactions` → `TransactionEntity` (service_b, payment context, cascade from `payments`)
+  - `outbox_events` → `OutboxEventEntity` (service_b, payment context)
   - All primary keys are `UUID` — no `@GeneratedValue`.
 - **Messaging**: Kafka at `localhost:9092` (host) / `kafka:19092` (Docker). Topics configured via `app.kafka.topics` in `KafkaTopicsConfig` (`@ConfigurationProperties` + `@Component`). Topics are auto-created on startup.
 - **Schema**: managed by Hibernate `ddl-auto: update`.

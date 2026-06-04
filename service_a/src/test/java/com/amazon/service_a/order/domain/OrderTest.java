@@ -1,6 +1,7 @@
 package com.amazon.service_a.order.domain;
 
 import com.amazon.service_a.order.domain.exception.InvalidOrderAmountException;
+import com.amazon.service_a.order.domain.exception.PaymentAlreadyPaidException;
 import com.amazon.service_boot.core.domain.vo.Money;
 import org.junit.jupiter.api.Test;
 
@@ -50,5 +51,13 @@ class OrderTest {
 
         assertThat(completed.payment().state()).isEqualTo(Payment.State.PAID);
         assertThat(completed.payment().id()).isEqualTo(order.payment().id());
+    }
+
+    @Test
+    void completePayment_throwsPaymentAlreadyPaidException_whenPaymentAlreadyPaid() {
+        Order order = Order.create("laptop", new Money(new BigDecimal("10.00"))).addPayment().completePayment();
+
+        assertThatThrownBy(order::completePayment)
+                .isInstanceOf(PaymentAlreadyPaidException.class);
     }
 }

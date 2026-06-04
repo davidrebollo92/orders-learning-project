@@ -28,6 +28,7 @@ import org.testcontainers.containers.PostgreSQLContainer;
 
 import java.math.BigDecimal;
 import java.time.Duration;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
@@ -99,6 +100,21 @@ class PaymentIntegrationTest {
         String payload = records.iterator().next().value();
         assertThat(payload).contains("\"paymentId\"");
         assertThat(payload).contains("\"orderId\"");
+    }
+
+    @Test
+    void consumeOrderCreated_isIdempotent_whenSameEventConsumedTwice() {
+        UUID orderId = UUID.randomUUID();
+        UUID paymentId = UUID.randomUUID();
+
+        publishOrderCreatedEvent(orderId, paymentId, new BigDecimal("50.00"));
+        publishOrderCreatedEvent(orderId, paymentId, new BigDecimal("50.00"));
+
+        await().atMost(Duration.ofSeconds(10)).untilAsserted(() -> {
+            List<PaymentEntity> payments = jpaPaymentRepository.findAll();
+            assertThat(payments).hasSize(1);
+            assertThat(payments.get(0).getId()).isEqualTo(paymentId);
+        });
     }
 
     private void publishOrderCreatedEvent(UUID orderId, UUID paymentId, BigDecimal amount) {

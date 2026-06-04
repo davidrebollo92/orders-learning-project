@@ -146,4 +146,21 @@ class OrderIntegrationTest {
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.code").value("ORDER_NOT_FOUND"));
     }
+
+    @Test
+    void getAll_returnsAllCreatedOrders() throws Exception {
+        CreateOrderRequest request1 = new CreateOrderRequest("laptop", new BigDecimal("10.00"));
+        CreateOrderRequest request2 = new CreateOrderRequest("phone", new BigDecimal("20.00"));
+
+        mockMvc.perform(post("/orders").contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request1)))
+                .andExpect(status().isCreated());
+        mockMvc.perform(post("/orders").contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request2)))
+                .andExpect(status().isCreated());
+
+        mockMvc.perform(get("/orders"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(2));
+    }
 }
