@@ -174,7 +174,7 @@ Both services use the **Transactional Outbox Pattern** to guarantee event publis
 - `OrderOutboxEventPublisher` / `PaymentOutboxEventPublisher` — implement the domain port by saving the event as a row in `outbox_events` within the same transaction as the business operation. No direct Kafka write from the service.
 - `OutboxEventEntity` — JPA entity (`outbox_events` table) with fields: `id`, `aggregateId`, `topic`, `payload` (JSON), `occurredAt`, `publishedAt` (null until sent).
 - `OutboxScheduler` — `@Scheduled(fixedDelay = 1000)`. Queries `findByPublishedAtIsNull()`, sends each event via `KafkaTemplate`, then sets `publishedAt`. Runs in both services independently.
-- `KafkaOutboxConfig` — defines the `@Bean("outboxKafkaTemplate")` with `StringSerializer` for key and value.
+- `KafkaOutboxConfig` — defines the `@Bean("outboxKafkaTemplate")` with `StringSerializer` for key and value. The payload is pre-serialized JSON stored in `outbox_events.payload`, so `StringSerializer` is required — using `JsonSerializer` would double-serialize it. As a consequence, Kafka messages sent by the Outbox carry no `__TypeId__` headers; consumers are configured with `spring.json.use.type.headers: false` and `spring.json.value.default.type` to deserialize without headers.
 
 ### Kafka event DTOs
 
@@ -218,6 +218,7 @@ return created;
 - **Port naming** — domain interfaces have no suffix (e.g. `OrderRepository`, `PaymentEventPublisher`).
 - **Adapter naming** — adapters include the technology (e.g. `OrderPostgreSqlRepository`, `PaymentOutboxEventPublisher`).
 - **`@Transactional`** — always use `org.springframework.transaction.annotation.Transactional`, never `jakarta.transaction.Transactional`.
+- **`@Enumerated(EnumType.STRING)`** — all enum fields in JPA entities must have this annotation. Without it, Hibernate 7 maps enums as `TINYINT` (ordinal), which conflicts with the `VARCHAR` columns declared in the Liquibase changelogs.
 
 ### Exception hierarchies
 
@@ -266,4 +267,4 @@ DomainException (service_boot)
   - `outbox_events` → `OutboxEventEntity` (service_b, payment context)
   - All primary keys are `UUID` — no `@GeneratedValue`.
 - **Messaging**: Kafka at `localhost:9092` (host) / `kafka:19092` (Docker). Topics configured via `app.kafka.topics` in `KafkaTopicsConfig` (`@ConfigurationProperties` + `@Component`). Topics are auto-created on startup.
-- **Schema**: managed by Hibernate `ddl-auto: update`.
+- **Schema**: managed by **Liquibase** (`ddl-auto: validate` — Hibernate only validates, never alters). Changelogs live in `src/main/resources/db/changelog/`. The master file `db.changelog-master.yaml` includes changesets from `changes/`. To add a schema change, create a new `NNN_description.sql` file and add an `include` entry to the master — never modify existing changesets.

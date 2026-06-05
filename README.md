@@ -15,6 +15,7 @@ Proyecto Maven multi-módulo con tres módulos (Java 21 / Spring Boot 4.0.6):
 - **Transactional Outbox** — los eventos se guardan en base de datos dentro de la misma transacción del negocio; un scheduler los publica a Kafka, garantizando consistencia sin two-phase commit
 - **Coreografía (Saga)** — flujo distribuido coordinado por eventos, sin orquestador central
 - **Idempotencia** — los consumidores detectan y descartan eventos duplicados
+- **Migraciones con Liquibase** — el esquema de base de datos se gestiona mediante changelogs versionados; Hibernate solo valida, nunca altera
 
 ## Flujo
 
