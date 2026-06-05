@@ -24,10 +24,13 @@ spring:
       value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
       properties:
         spring.json.trusted.packages: com.amazon.service_b.payment.infrastructure.messaging
-        spring.json.type.mapping: orderCreated:com.amazon.service_b.payment.infrastructure.messaging.OrderCreatedEvent
+        spring.json.use.type.headers: false
+        spring.json.value.default.type: com.amazon.service_b.payment.infrastructure.messaging.OrderCreatedEvent
+  liquibase:
+    change-log: classpath:db/changelog/db.changelog-master.yaml
   jpa:
     hibernate:
-      ddl-auto: update
+      ddl-auto: validate
   web:
     error:
       include-stacktrace: never

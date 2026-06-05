@@ -17,6 +17,7 @@ public class PaymentEntity {
 
     private UUID orderId;
 
+    @Enumerated(EnumType.STRING)
     private Payment.State state;
 
     @OneToOne(fetch = FetchType.EAGER, cascade = CascadeType.ALL)
