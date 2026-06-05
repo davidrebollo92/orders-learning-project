@@ -116,7 +116,10 @@ No HTTP endpoints — fully event-driven.
     persistence/
       mapper/      → persistence mappers (@Component)
       *.java       → JPA entities, JPA repositories, repository adapter
-    messaging/     → Kafka adapters, event DTOs and topic configuration
+    messaging/
+      dto/         → Kafka event DTOs (one per event type)
+      *.java       → Kafka consumers, outbox publisher, topic config
+    gateway/       → adapters for external services (e.g. SimulatedPaymentGateway) — service_b only
 ```
 
 Note: `aplication` is a pre-existing typo — do not rename it.
@@ -124,7 +127,7 @@ Note: `aplication` is a pre-existing typo — do not rename it.
 ### Ports and adapters pattern
 
 - **Driving ports** (input) — controllers and Kafka consumers depend directly on service classes in `aplication/` (no use case interfaces).
-- **Driven ports** (output) — repository and event publisher interfaces in `domain/`. Services depend on these; adapters implement them.
+- **Driven ports** (output) — repository, event publisher, and gateway interfaces in `domain/`. Services depend on these; adapters implement them.
 
 ```
 # service_a
@@ -132,10 +135,12 @@ Controller → ServiceClass → OrderRepository (interface) ← OrderPostgreSqlR
                                                                                       → JpaOrderPaymentRepository
            → OrderEventPublisher (interface) ← OrderOutboxEventPublisher → JpaOutboxEventRepository
 KafkaConsumer → PaymentCompleter → OrderRepository
+             → OrderCanceller   → OrderRepository
 
 # service_b
 KafkaConsumer → PaymentProcessor → PaymentRepository (interface) ← PaymentPostgreSqlRepository → JpaPaymentRepository
                                  → PaymentEventPublisher (interface) ← PaymentOutboxEventPublisher → JpaOutboxEventRepository
+                                 → PaymentGateway (interface) ← SimulatedPaymentGateway
 ```
 
 ### Event-driven flow
@@ -143,7 +148,7 @@ KafkaConsumer → PaymentProcessor → PaymentRepository (interface) ← Payment
 ```
 POST /orders (service_a)
   → OrderCreator
-      → saves Order + Payment (PENDING) via JPA cascade → `orders` + `payments` tables
+      → saves Order (CREATED) + Payment (PENDING) via JPA cascade → `orders` + `payments` tables
       → OrderOutboxEventPublisher.publishOrderCreated()
           → saves OrderCreatedEvent to `outbox_events` table (same transaction)
   → OutboxScheduler (every 1s)
@@ -152,19 +157,31 @@ POST /orders (service_a)
 OrderCreatedKafkaEventConsumer (service_b)
   → PaymentProcessor
       → idempotency check: if payment already in `payments` → throw PaymentAlreadyPaidException → log warn, discard
-      → creates Transaction, pays Payment
-      → saves Payment (PAID) + Transaction → `payments` + `transactions` tables
-      → PaymentOutboxEventPublisher.publishPaymentCompleted()
-          → saves PaymentCompletedEvent to `outbox_events` table (same transaction)
+      → PaymentGateway.charge(amount):
+          happy path (amount ≤ 1000):
+            → creates Transaction, pays Payment
+            → saves Payment (PAID) + Transaction → `payments` + `transactions` tables
+            → PaymentOutboxEventPublisher.publishPaymentCompleted()
+                → saves PaymentCompletedEvent (type=PAYMENT_COMPLETED) to `outbox_events` (same transaction)
+          failure path (amount > 1000 → InsufficientFundsException):
+            → payment.fail() → Payment (FAILED)
+            → saves Payment (FAILED) → `payments` table
+            → PaymentOutboxEventPublisher.publishPaymentFailed()
+                → saves PaymentFailedEvent (type=PAYMENT_FAILED) to `outbox_events` (same transaction)
   → OutboxScheduler (every 1s)
       → reads unpublished outbox_events, sends to Kafka topic `payments`, marks published
 
-PaymentCompletedKafkaEventConsumer (service_a)
-  → PaymentCompleter
+PaymentKafkaEventConsumer (service_a) — deserializes as PaymentEvent, routes by `type`
+  type=PAYMENT_COMPLETED → PaymentCompleter
       → loads Order by orderId → if not found → log error (OrderNotFoundException), discard
       → checks paymentId matches order's payment → if not → log error (PaymentNotFoundException), discard
-      → calls order.completePayment() → payment.pay() → if already PAID → log warn (PaymentAlreadyPaidException), discard
-      → calls orderRepository.updatePayment() → JpaOrderPaymentRepository.updateState() → UPDATE `payments` SET state=PAID
+      → calls order.completePayment() → Order (PAID), payment.pay() → Payment (PAID)
+      → calls orderRepository.updatePayment() → UPDATE `orders` SET state=PAID, UPDATE `payments` SET state=PAID
+  type=PAYMENT_FAILED → OrderCanceller
+      → loads Order by orderId → if not found → log error (OrderNotFoundException), discard
+      → checks paymentId matches order's payment → if not → log error (PaymentNotFoundException), discard
+      → calls order.cancel() → Order (CANCELLED), payment.fail() → Payment (FAILED)
+      → calls orderRepository.updatePayment() → UPDATE `orders` SET state=CANCELLED, UPDATE `payments` SET state=FAILED
 ```
 
 ### Outbox Pattern
@@ -178,9 +195,13 @@ Both services use the **Transactional Outbox Pattern** to guarantee event publis
 
 ### Kafka event DTOs
 
-Each service defines its own local event DTOs — no cross-service imports:
-- `service_a/order/infrastructure/messaging/` — `OrderCreatedEvent` (producer), `PaymentCompletedEvent` (consumer)
-- `service_b/payment/infrastructure/messaging/` — `OrderCreatedEvent` (consumer), `PaymentCompletedEvent` (producer)
+Each service defines its own local event DTOs in `infrastructure/messaging/dto/` — no cross-service imports:
+- `service_a/order/infrastructure/messaging/dto/` — `OrderCreatedEvent` (producer), `PaymentEvent` (consumer wrapper)
+- `service_b/payment/infrastructure/messaging/dto/` — `OrderCreatedEvent` (consumer), `PaymentCompletedEvent` (producer), `PaymentFailedEvent` (producer)
+
+Both `PaymentCompletedEvent` and `PaymentFailedEvent` are published to the same topic `payments` with a `type` field (`PAYMENT_COMPLETED` / `PAYMENT_FAILED`). service_a deserializes both as `PaymentEvent` (a temporary common type pending Schema Registry implementation) and routes by `type`.
+
+All events include a `type` field for self-description. `PaymentEvent` in service_a is a temporary wrapper — when Schema Registry is implemented it will be replaced by `PaymentCompletedEvent` and `PaymentFailedEvent` with schema-based deserialization.
 
 ### Kafka error handling
 
@@ -189,6 +210,7 @@ Consumers use `@RetryableTopic` (3 attempts, exponential backoff 1s×2) with a `
 Within each attempt, known domain exceptions are caught and not retried:
 - Duplicate event (`PaymentAlreadyPaidException`) → `log.warn`, discard.
 - Payment/order not found (`PaymentNotFoundException`, `OrderNotFoundException`) → `log.error`, discard.
+- Insufficient funds (`InsufficientFundsException`) → `log.warn`, discard (service_b).
 - Any other exception propagates so `@RetryableTopic` retries it up to 3 times, then routes to DLT.
 
 ### Code style
@@ -209,7 +231,7 @@ return created;
 - **Domain objects are immutable records** — `Order`, `Payment`, `Transaction`, `Money` are Java records.
 - **UUIDs generated in domain** — factory methods call `UUID.randomUUID()`. No `@GeneratedValue` in JPA entities.
 - **`@Builder(toBuilder = true)`** — all domain records with `@Builder` use `toBuilder = true`. Mutation methods (e.g. `pay()`, `completePayment()`) must use `toBuilder()` to copy existing fields and only override what changes. Never use `builder()` from within a mutation method.
-- **`Order.create(String name, Money amount)`** — static factory. Creates an `Order` with `payment = null`. Call `addPayment()` to attach a `Payment` in `PENDING` state before persisting.
+- **`Order.create(String name, Money amount)`** — static factory. Creates an `Order` with `state = CREATED` and `payment = null`. Call `addPayment()` to attach a `Payment` in `PENDING` state before persisting.
 - **`payment/domain/Payment.create(UUID id, UUID orderId)`** — factory for new payments in `PENDING` state (service_b).
 - **`Money`** lives in `service_boot/core/domain/vo/`. `isBelowMinimum()` returns `boolean`. Do not duplicate minimum-amount validation in DTOs.
 - **HTTP mappers** and **persistence mappers** are `@Component` beans injected by constructor — never static.
@@ -238,7 +260,8 @@ DomainException (service_boot)
 DomainException (service_boot)
   └── PaymentDomainException (payment)
         ├── PaymentAlreadyPaidException
-        └── InvalidPaymentStateException
+        ├── InvalidPaymentStateException
+        └── InsufficientFundsException
 ```
 
 ### Exception handling (service_a)
@@ -259,12 +282,14 @@ DomainException (service_boot)
   - `service_a_db` — PostgreSQL at `localhost:5432` (host) / `amazon-postgres-service-a:5432` (Docker) — user/pass: `postgres/postgres`
   - `service_b_db` — PostgreSQL at `localhost:5433` (host) / `amazon-postgres-service-b:5432` (Docker) — user/pass: `postgres/postgres`
 - **Tables**:
-  - `orders` → `OrderEntity` (service_a, order context)
-  - `payments` → `OrderPaymentEntity` (service_a, order context, cascade from `orders`)
+  - `orders` → `OrderEntity` (service_a, order context) — columns: `id`, `name`, `amount`, `state`, `payment_id`
+  - `payments` → `OrderPaymentEntity` (service_a, order context, cascade from `orders`) — columns: `id`, `state`
   - `outbox_events` → `OutboxEventEntity` (service_a, order context)
-  - `payments` → `PaymentEntity` (service_b, payment context; different database from service_a)
+  - `payments` → `PaymentEntity` (service_b, payment context; different database from service_a) — columns: `id`, `order_id`, `state`, `transaction_id`
   - `transactions` → `TransactionEntity` (service_b, payment context, cascade from `payments`)
   - `outbox_events` → `OutboxEventEntity` (service_b, payment context)
   - All primary keys are `UUID` — no `@GeneratedValue`.
 - **Messaging**: Kafka at `localhost:9092` (host) / `kafka:19092` (Docker). Topics configured via `app.kafka.topics` in `KafkaTopicsConfig` (`@ConfigurationProperties` + `@Component`). Topics are auto-created on startup.
 - **Schema**: managed by **Liquibase** (`ddl-auto: validate` — Hibernate only validates, never alters). Changelogs live in `src/main/resources/db/changelog/`. The master file `db.changelog-master.yaml` includes changesets from `changes/`. To add a schema change, create a new `NNN_description.sql` file and add an `include` entry to the master — never modify existing changesets.
+  - service_a changelogs: `001_init_schema.sql` (orders, payments, outbox_events), `002_add_state_to_orders.sql` (adds `state VARCHAR(10)` column to `orders`)
+  - service_b changelogs: `001_init_schema.sql` (transactions, payments, outbox_events)

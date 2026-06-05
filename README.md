@@ -13,21 +13,28 @@ Proyecto Maven multi-módulo con tres módulos (Java 21 / Spring Boot 4.0.6):
 - **Hexagonal Architecture** — dominio aislado de infraestructura mediante puertos e interfaces
 - **DDD** — agregados, value objects, excepciones de dominio, factorías en el dominio
 - **Transactional Outbox** — los eventos se guardan en base de datos dentro de la misma transacción del negocio; un scheduler los publica a Kafka, garantizando consistencia sin two-phase commit
-- **Coreografía (Saga)** — flujo distribuido coordinado por eventos, sin orquestador central
+- **Saga con compensación** — flujo distribuido coordinado por eventos; si el pago falla, service_b publica `PaymentFailedEvent` y service_a cancela la orden (`CANCELLED`)
 - **Idempotencia** — los consumidores detectan y descartan eventos duplicados
 - **Migraciones con Liquibase** — el esquema de base de datos se gestiona mediante changelogs versionados; Hibernate solo valida, nunca altera
 
 ## Flujo
 
-1. `POST /orders` crea una orden con un pago en estado `PENDING` y guarda `OrderCreatedEvent` en la tabla `outbox_events` de forma atómica
-2. El `OutboxScheduler` de service_a publica el evento a Kafka
-3. service_b consume `OrderCreatedEvent`, procesa el pago, crea una transacción y guarda `PaymentCompletedEvent` en su `outbox_events`
-4. El `OutboxScheduler` de service_b publica el evento a Kafka
-5. service_a consume `PaymentCompletedEvent` y actualiza el pago a `PAID`
+**Happy path (importe ≤ 1000):**
+1. `POST /orders` crea una orden (`CREATED`) con un pago (`PENDING`) y guarda `OrderCreatedEvent` en `outbox_events` de forma atómica
+2. El `OutboxScheduler` de service_a publica el evento al topic `orders`
+3. service_b consume `OrderCreatedEvent`, cobra el pago vía `SimulatedPaymentGateway` y guarda `PaymentCompletedEvent` en su `outbox_events`
+4. El `OutboxScheduler` de service_b publica el evento al topic `payments`
+5. service_a consume el evento (type=`PAYMENT_COMPLETED`) y transiciona la orden a `PAID`
+
+**Flujo de compensación (importe > 1000):**
+1–2. Igual que arriba
+3. service_b detecta fondos insuficientes, falla el pago y guarda `PaymentFailedEvent` en su `outbox_events`
+4. El `OutboxScheduler` de service_b publica el evento al topic `payments`
+5. service_a consume el evento (type=`PAYMENT_FAILED`) y transiciona la orden a `CANCELLED`
 
 ## Gestión de errores Kafka
 
-Los consumidores usan `@RetryableTopic` (3 reintentos, backoff exponencial). Las excepciones de negocio conocidas se absorben sin reintentar (duplicados → `warn`, no encontrado → `error`). Tras agotar reintentos, el mensaje va al Dead Letter Topic.
+Los consumidores usan `@RetryableTopic` (3 reintentos, backoff exponencial). Las excepciones de negocio conocidas se absorben sin reintentar (duplicados → `warn`, no encontrado → `error`, fondos insuficientes → `warn`). Tras agotar reintentos, el mensaje va al Dead Letter Topic.
 
 ## Requisitos
 
