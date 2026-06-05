@@ -12,7 +12,8 @@ public record Payment(UUID id, UUID orderId, State state, Transaction transactio
 
     public enum State {
         PENDING,
-        PAID
+        PAID,
+        FAILED
     }
 
     public Payment {
@@ -31,6 +32,14 @@ public record Payment(UUID id, UUID orderId, State state, Transaction transactio
         }
 
         return toBuilder().withState(State.PAID).withTransaction(transaction).build();
+    }
+
+    public Payment fail() {
+        if (this.state != State.PENDING) {
+            throw new PaymentAlreadyPaidException(this.id);
+        }
+
+        return toBuilder().withState(State.FAILED).build();
     }
 }
 

@@ -2,6 +2,8 @@ package com.amazon.service_b.payment.infrastructure.messaging;
 
 import com.amazon.service_b.payment.domain.Payment;
 import com.amazon.service_b.payment.domain.PaymentEventPublisher;
+import com.amazon.service_b.payment.infrastructure.messaging.dto.PaymentCompletedEvent;
+import com.amazon.service_b.payment.infrastructure.messaging.dto.PaymentFailedEvent;
 import com.amazon.service_b.payment.infrastructure.persistence.JpaOutboxEventRepository;
 import com.amazon.service_b.payment.infrastructure.persistence.OutboxEventEntity;
 import com.amazon.service_boot.core.infrastructure.messaging.KafkaTopicsConfig;
@@ -23,7 +25,7 @@ public class PaymentOutboxEventPublisher implements PaymentEventPublisher {
 
     @Override
     public void publishPaymentCompleted(Payment payment) {
-        PaymentCompletedEvent event = new PaymentCompletedEvent(payment.id(), payment.orderId());
+        PaymentCompletedEvent event = new PaymentCompletedEvent("PAYMENT_COMPLETED", payment.id(), payment.orderId());
 
         try {
             String payload = objectMapper.writeValueAsString(event);
@@ -38,6 +40,26 @@ public class PaymentOutboxEventPublisher implements PaymentEventPublisher {
             ));
         } catch (JsonProcessingException e) {
             throw new RuntimeException("Failed to serialize PaymentCompletedEvent", e);
+        }
+    }
+
+    @Override
+    public void publishPaymentFailed(Payment payment) {
+        PaymentFailedEvent event = new PaymentFailedEvent("PAYMENT_FAILED", payment.id(), payment.orderId());
+
+        try {
+            String payload = objectMapper.writeValueAsString(event);
+
+            jpaOutboxEventRepository.save(new OutboxEventEntity(
+                    UUID.randomUUID(),
+                    payment.id(),
+                    kafkaTopicsConfig.getPayments(),
+                    payload,
+                    Instant.now(),
+                    null
+            ));
+        } catch (JsonProcessingException e) {
+            throw new RuntimeException("Failed to serialize PaymentFailedEvent", e);
         }
     }
 }

@@ -22,7 +22,7 @@ public class PaymentPostgreSqlRepository implements PaymentRepository {
     }
 
     @Override
-    public Payment completePayment(Payment payment) {
+    public Payment save(Payment payment) {
         PaymentEntity entity = paymentEntityMapper.toEntity(payment);
         PaymentEntity saved = jpaPaymentRepository.save(entity);
 

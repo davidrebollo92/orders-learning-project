@@ -1,7 +1,7 @@
 package com.amazon.service_b;
 
 import com.amazon.service_b.payment.domain.Payment;
-import com.amazon.service_b.payment.infrastructure.messaging.OrderCreatedEvent;
+import com.amazon.service_b.payment.infrastructure.messaging.dto.OrderCreatedEvent;
 import com.amazon.service_b.payment.infrastructure.persistence.JpaPaymentRepository;
 import com.amazon.service_b.payment.infrastructure.persistence.PaymentEntity;
 import org.apache.kafka.clients.consumer.Consumer;

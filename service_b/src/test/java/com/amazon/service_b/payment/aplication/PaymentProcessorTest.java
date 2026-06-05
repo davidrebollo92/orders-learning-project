@@ -2,8 +2,10 @@ package com.amazon.service_b.payment.aplication;
 
 import com.amazon.service_b.payment.domain.Payment;
 import com.amazon.service_b.payment.domain.PaymentEventPublisher;
+import com.amazon.service_b.payment.domain.PaymentGateway;
 import com.amazon.service_b.payment.domain.PaymentRepository;
 import com.amazon.service_b.payment.domain.Transaction;
+import com.amazon.service_b.payment.domain.exception.InsufficientFundsException;
 import com.amazon.service_b.payment.domain.exception.PaymentAlreadyPaidException;
 import com.amazon.service_boot.core.domain.vo.Money;
 import org.junit.jupiter.api.Test;
@@ -18,6 +20,7 @@ import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -30,6 +33,9 @@ class PaymentProcessorTest {
     @Mock
     private PaymentEventPublisher paymentEventPublisher;
 
+    @Mock
+    private PaymentGateway paymentGateway;
+
     @InjectMocks
     private PaymentProcessor paymentProcessor;
 
@@ -40,12 +46,28 @@ class PaymentProcessorTest {
         Payment savedPayment = payment.pay(Transaction.create(amount));
 
         when(paymentRepository.findById(payment.id())).thenReturn(Optional.empty());
-        when(paymentRepository.completePayment(any(Payment.class))).thenReturn(savedPayment);
+        when(paymentRepository.save(any(Payment.class))).thenReturn(savedPayment);
 
         paymentProcessor.process(payment, amount);
 
-        verify(paymentRepository).completePayment(any(Payment.class));
+        verify(paymentRepository).save(any(Payment.class));
         verify(paymentEventPublisher).publishPaymentCompleted(savedPayment);
+    }
+
+    @Test
+    void process_savesFailedPaymentAndPublishesEvent_whenInsufficientFunds() {
+        Payment payment = Payment.create(UUID.randomUUID(), UUID.randomUUID());
+        Money amount = new Money(new BigDecimal("1500.00"));
+        Payment failedPayment = payment.fail();
+
+        when(paymentRepository.findById(payment.id())).thenReturn(Optional.empty());
+        doThrow(new InsufficientFundsException(amount.amount())).when(paymentGateway).charge(amount);
+        when(paymentRepository.save(any(Payment.class))).thenReturn(failedPayment);
+
+        paymentProcessor.process(payment, amount);
+
+        verify(paymentRepository).save(any(Payment.class));
+        verify(paymentEventPublisher).publishPaymentFailed(failedPayment);
     }
 
     @Test

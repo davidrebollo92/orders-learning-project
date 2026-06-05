@@ -23,6 +23,7 @@ public class OrderDtoMapper {
                 order.id(),
                 order.name(),
                 order.amount().amount(),
+                order.state().name(),
                 paymentResponse
         );
     }

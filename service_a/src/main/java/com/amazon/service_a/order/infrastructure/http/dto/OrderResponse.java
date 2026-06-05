@@ -7,6 +7,7 @@ public record OrderResponse(
         UUID id,
         String name,
         BigDecimal amount,
+        String state,
         PaymentResponse payment
 ) {
 }

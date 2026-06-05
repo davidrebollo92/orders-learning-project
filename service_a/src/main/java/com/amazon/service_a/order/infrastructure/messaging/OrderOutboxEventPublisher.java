@@ -2,6 +2,7 @@ package com.amazon.service_a.order.infrastructure.messaging;
 
 import com.amazon.service_a.order.domain.Order;
 import com.amazon.service_a.order.domain.OrderEventPublisher;
+import com.amazon.service_a.order.infrastructure.messaging.dto.OrderCreatedEvent;
 import com.amazon.service_a.order.infrastructure.persistence.JpaOutboxEventRepository;
 import com.amazon.service_a.order.infrastructure.persistence.OutboxEventEntity;
 import com.amazon.service_boot.core.infrastructure.messaging.KafkaTopicsConfig;

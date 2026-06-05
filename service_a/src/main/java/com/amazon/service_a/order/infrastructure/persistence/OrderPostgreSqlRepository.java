@@ -2,7 +2,6 @@ package com.amazon.service_a.order.infrastructure.persistence;
 
 import com.amazon.service_a.order.domain.Order;
 import com.amazon.service_a.order.domain.OrderRepository;
-import com.amazon.service_a.order.domain.Payment;
 import com.amazon.service_a.order.infrastructure.persistence.mapper.OrderEntityMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
@@ -42,6 +41,7 @@ public class OrderPostgreSqlRepository implements OrderRepository {
 
     @Override
     public void updatePayment(Order order) {
-        jpaOrderPaymentRepository.updateState(order.payment().id(), Payment.State.PAID);
+        jpaOrderRepository.updateState(order.id(), order.state());
+        jpaOrderPaymentRepository.updateState(order.payment().id(), order.payment().state());
     }
 }

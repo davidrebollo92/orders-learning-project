@@ -2,6 +2,7 @@ package com.amazon.service_b.payment.infrastructure.messaging;
 
 import com.amazon.service_b.payment.aplication.PaymentProcessor;
 import com.amazon.service_b.payment.domain.exception.PaymentAlreadyPaidException;
+import com.amazon.service_b.payment.infrastructure.messaging.dto.OrderCreatedEvent;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;

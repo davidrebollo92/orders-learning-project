@@ -54,7 +54,7 @@ class OrderControllerTest {
         Order order = Order.create("laptop", new Money(new BigDecimal("10.00")));
         Order orderWithPayment = order.addPayment();
         OrderResponse response = new OrderResponse(orderId, "laptop", new BigDecimal("10.00"),
-                new PaymentResponse(paymentId, "PENDING"));
+                "PENDING", new PaymentResponse(paymentId, "PENDING"));
 
         when(orderDtoMapper.toDomain(any(CreateOrderRequest.class))).thenReturn(order);
         when(orderCreator.create(any(Order.class))).thenReturn(orderWithPayment);
@@ -110,7 +110,7 @@ class OrderControllerTest {
         UUID paymentId = UUID.randomUUID();
         Order order = Order.create("laptop", new Money(new BigDecimal("10.00")));
         OrderResponse response = new OrderResponse(orderId, "laptop", new BigDecimal("10.00"),
-                new PaymentResponse(paymentId, "PENDING"));
+                "PENDING", new PaymentResponse(paymentId, "PENDING"));
 
         when(orderFinder.findAll()).thenReturn(List.of(order));
         when(orderDtoMapper.toResponse(any(Order.class))).thenReturn(response);
@@ -137,7 +137,7 @@ class OrderControllerTest {
         UUID paymentId = UUID.randomUUID();
         Order order = Order.create("laptop", new Money(new BigDecimal("10.00")));
         OrderResponse response = new OrderResponse(orderId, "laptop", new BigDecimal("10.00"),
-                new PaymentResponse(paymentId, "PENDING"));
+                "PENDING", new PaymentResponse(paymentId, "PENDING"));
 
         when(orderFinder.findById(orderId)).thenReturn(order);
         when(orderDtoMapper.toResponse(any(Order.class))).thenReturn(response);

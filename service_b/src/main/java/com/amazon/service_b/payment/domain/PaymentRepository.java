@@ -6,5 +6,5 @@ import java.util.UUID;
 public interface PaymentRepository {
     Optional<Payment> findById(UUID id);
 
-    Payment completePayment(Payment payment);
+    Payment save(Payment payment);
 }

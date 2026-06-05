@@ -1,5 +1,6 @@
 package com.amazon.service_a.order.infrastructure.persistence;
 
+import com.amazon.service_a.order.domain.Order;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
@@ -20,6 +21,9 @@ public class OrderEntity {
     private String name;
 
     private BigDecimal amount;
+
+    @Enumerated(EnumType.STRING)
+    private Order.State state;
 
     @OneToOne(fetch = FetchType.EAGER, cascade = CascadeType.ALL)
     @JoinColumn(name = "payment_id")

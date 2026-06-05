@@ -1,4 +1,4 @@
-package com.amazon.service_b.payment.infrastructure.messaging;
+package com.amazon.service_b.payment.infrastructure.messaging.dto;
 
 import java.math.BigDecimal;
 import java.util.UUID;

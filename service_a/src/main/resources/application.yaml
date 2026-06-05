@@ -23,9 +23,9 @@ spring:
       key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
       value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
       properties:
-        spring.json.trusted.packages: com.amazon.service_a.order.infrastructure.messaging
+        spring.json.trusted.packages: com.amazon.service_a.order.infrastructure.messaging.dto
         spring.json.use.type.headers: false
-        spring.json.value.default.type: com.amazon.service_a.order.infrastructure.messaging.PaymentCompletedEvent
+        spring.json.value.default.type: com.amazon.service_a.order.infrastructure.messaging.dto.PaymentEvent
   liquibase:
     change-log: classpath:db/changelog/db.changelog-master.yaml
   jpa:

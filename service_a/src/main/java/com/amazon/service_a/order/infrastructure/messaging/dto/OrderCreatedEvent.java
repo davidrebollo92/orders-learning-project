@@ -1,4 +1,4 @@
-package com.amazon.service_a.order.infrastructure.messaging;
+package com.amazon.service_a.order.infrastructure.messaging.dto;
 
 import java.math.BigDecimal;
 import java.util.UUID;
