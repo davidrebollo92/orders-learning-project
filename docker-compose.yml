@@ -51,6 +51,19 @@ services:
     ports:
       - "9092:9092"
 
+  schema-registry:
+    image: confluentinc/cp-schema-registry:7.6.0
+    container_name: amazon-schema-registry
+    environment:
+      SCHEMA_REGISTRY_KAFKASTORE_BOOTSTRAP_SERVERS: PLAINTEXT://kafka:19092
+      SCHEMA_REGISTRY_HOST_NAME: schema-registry
+      SCHEMA_REGISTRY_LISTENERS: http://0.0.0.0:8081
+    ports:
+      - "8081:8081"
+    depends_on:
+      kafka:
+        condition: service_started
+
   service_a:
     build:
       context: .
@@ -61,10 +74,13 @@ services:
     environment:
       SPRING_DATASOURCE_URL: jdbc:postgresql://amazon-postgres-service-a:5432/service_a_db
       SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:19092
+      SPRING_KAFKA_PROPERTIES_SCHEMA_REGISTRY_URL: http://schema-registry:8081
     depends_on:
       postgres-service-a:
         condition: service_healthy
       kafka:
+        condition: service_started
+      schema-registry:
         condition: service_started
     restart: on-failure
 
@@ -76,10 +92,13 @@ services:
     environment:
       SPRING_DATASOURCE_URL: jdbc:postgresql://amazon-postgres-service-b:5432/service_b_db
       SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:19092
+      SPRING_KAFKA_PROPERTIES_SCHEMA_REGISTRY_URL: http://schema-registry:8081
     depends_on:
       postgres-service-b:
         condition: service_healthy
       kafka:
+        condition: service_started
+      schema-registry:
         condition: service_started
     restart: on-failure
 

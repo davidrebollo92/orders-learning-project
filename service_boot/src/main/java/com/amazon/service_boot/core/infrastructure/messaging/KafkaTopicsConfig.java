@@ -10,6 +10,7 @@ import org.springframework.stereotype.Component;
 @Getter
 @Setter
 public class KafkaTopicsConfig {
-    private String orders;
-    private String payments;
+    private String ordersCreated;
+    private String paymentsCompleted;
+    private String paymentsFailed;
 }

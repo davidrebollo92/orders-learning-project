@@ -1,11 +1,12 @@
 package com.amazon.service_a.order.infrastructure.messaging;
 
+import com.amazon.avro.PaymentCompletedEvent;
+import com.amazon.avro.PaymentFailedEvent;
 import com.amazon.service_a.order.aplication.OrderCanceller;
 import com.amazon.service_a.order.aplication.PaymentCompleter;
 import com.amazon.service_a.order.domain.exception.OrderNotFoundException;
 import com.amazon.service_a.order.domain.exception.PaymentAlreadyPaidException;
 import com.amazon.service_a.order.domain.exception.PaymentNotFoundException;
-import com.amazon.service_a.order.infrastructure.messaging.dto.PaymentEvent;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -30,69 +31,94 @@ class PaymentKafkaEventConsumerTest {
     @InjectMocks
     private PaymentKafkaEventConsumer consumer;
 
+    private PaymentCompletedEvent completedEvent(UUID paymentId, UUID orderId) {
+        return PaymentCompletedEvent.newBuilder()
+                .setPaymentId(paymentId.toString())
+                .setOrderId(orderId.toString())
+                .build();
+    }
+
+    private PaymentFailedEvent failedEvent(UUID paymentId, UUID orderId) {
+        return PaymentFailedEvent.newBuilder()
+                .setPaymentId(paymentId.toString())
+                .setOrderId(orderId.toString())
+                .build();
+    }
+
     @Test
-    void consume_callsPaymentCompleter_whenPaymentCompleted() {
+    void consumeCompleted_callsPaymentCompleter() {
         UUID orderId = UUID.randomUUID();
         UUID paymentId = UUID.randomUUID();
-        PaymentEvent event = new PaymentEvent("PAYMENT_COMPLETED", paymentId, orderId);
 
-        consumer.consume(event);
+        consumer.consumeCompleted(completedEvent(paymentId, orderId));
 
         verify(paymentCompleter).complete(orderId, paymentId);
     }
 
     @Test
-    void consume_callsOrderCanceller_whenPaymentFailed() {
+    void consumeFailed_callsOrderCanceller() {
         UUID orderId = UUID.randomUUID();
         UUID paymentId = UUID.randomUUID();
-        PaymentEvent event = new PaymentEvent("PAYMENT_FAILED", paymentId, orderId);
 
-        consumer.consume(event);
+        consumer.consumeFailed(failedEvent(paymentId, orderId));
 
         verify(orderCanceller).cancel(orderId, paymentId);
     }
 
     @Test
-    void consume_doesNotThrow_whenPaymentNotFound() {
+    void consumeCompleted_doesNotThrow_whenPaymentNotFound() {
         UUID orderId = UUID.randomUUID();
         UUID paymentId = UUID.randomUUID();
-        PaymentEvent event = new PaymentEvent("PAYMENT_COMPLETED", paymentId, orderId);
         doThrow(new PaymentNotFoundException(paymentId)).when(paymentCompleter).complete(orderId, paymentId);
 
-        assertThatNoException().isThrownBy(() -> consumer.consume(event));
+        assertThatNoException().isThrownBy(() -> consumer.consumeCompleted(completedEvent(paymentId, orderId)));
     }
 
     @Test
-    void consume_doesNotThrow_whenOrderNotFound() {
+    void consumeCompleted_doesNotThrow_whenOrderNotFound() {
         UUID orderId = UUID.randomUUID();
         UUID paymentId = UUID.randomUUID();
-        PaymentEvent event = new PaymentEvent("PAYMENT_FAILED", paymentId, orderId);
-        doThrow(new OrderNotFoundException(orderId)).when(orderCanceller).cancel(orderId, paymentId);
+        doThrow(new OrderNotFoundException(orderId)).when(paymentCompleter).complete(orderId, paymentId);
 
-        assertThatNoException().isThrownBy(() -> consumer.consume(event));
+        assertThatNoException().isThrownBy(() -> consumer.consumeCompleted(completedEvent(paymentId, orderId)));
     }
 
     @Test
-    void consume_doesNotThrow_whenPaymentAlreadyPaid() {
+    void consumeCompleted_doesNotThrow_whenPaymentAlreadyPaid() {
         UUID orderId = UUID.randomUUID();
         UUID paymentId = UUID.randomUUID();
-        PaymentEvent event = new PaymentEvent("PAYMENT_COMPLETED", paymentId, orderId);
         doThrow(new PaymentAlreadyPaidException(paymentId)).when(paymentCompleter).complete(orderId, paymentId);
 
-        assertThatNoException().isThrownBy(() -> consumer.consume(event));
+        assertThatNoException().isThrownBy(() -> consumer.consumeCompleted(completedEvent(paymentId, orderId)));
     }
 
     @Test
-    void consume_doesNotThrow_whenUnknownType() {
-        PaymentEvent event = new PaymentEvent("UNKNOWN", UUID.randomUUID(), UUID.randomUUID());
+    void consumeFailed_doesNotThrow_whenPaymentNotFound() {
+        UUID orderId = UUID.randomUUID();
+        UUID paymentId = UUID.randomUUID();
+        doThrow(new PaymentNotFoundException(paymentId)).when(orderCanceller).cancel(orderId, paymentId);
 
-        assertThatNoException().isThrownBy(() -> consumer.consume(event));
+        assertThatNoException().isThrownBy(() -> consumer.consumeFailed(failedEvent(paymentId, orderId)));
     }
 
     @Test
-    void handleDlt_doesNotThrow() {
-        PaymentEvent event = new PaymentEvent("PAYMENT_COMPLETED", UUID.randomUUID(), UUID.randomUUID());
+    void consumeFailed_doesNotThrow_whenOrderNotFound() {
+        UUID orderId = UUID.randomUUID();
+        UUID paymentId = UUID.randomUUID();
+        doThrow(new OrderNotFoundException(orderId)).when(orderCanceller).cancel(orderId, paymentId);
 
-        assertThatNoException().isThrownBy(() -> consumer.handleDlt(event));
+        assertThatNoException().isThrownBy(() -> consumer.consumeFailed(failedEvent(paymentId, orderId)));
+    }
+
+    @Test
+    void handleCompletedDlt_doesNotThrow() {
+        assertThatNoException().isThrownBy(() ->
+                consumer.handleCompletedDlt(completedEvent(UUID.randomUUID(), UUID.randomUUID())));
+    }
+
+    @Test
+    void handleFailedDlt_doesNotThrow() {
+        assertThatNoException().isThrownBy(() ->
+                consumer.handleFailedDlt(failedEvent(UUID.randomUUID(), UUID.randomUUID())));
     }
 }

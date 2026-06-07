@@ -1,15 +1,19 @@
 package com.amazon.service_b;
 
+import com.amazon.avro.OrderCreatedEvent;
+import com.amazon.avro.PaymentCompletedEvent;
 import com.amazon.service_b.payment.domain.Payment;
-import com.amazon.service_b.payment.infrastructure.messaging.dto.OrderCreatedEvent;
 import com.amazon.service_b.payment.infrastructure.persistence.JpaPaymentRepository;
 import com.amazon.service_b.payment.infrastructure.persistence.PaymentEntity;
+import io.confluent.kafka.serializers.KafkaAvroDeserializer;
+import io.confluent.kafka.serializers.KafkaAvroSerializer;
+import io.confluent.kafka.serializers.subject.TopicRecordNameStrategy;
 import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
-import org.apache.kafka.common.serialization.StringDeserializer;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.clients.producer.ProducerRecord;
+import org.apache.kafka.common.serialization.StringDeserializer;
 import org.apache.kafka.common.serialization.StringSerializer;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -18,7 +22,6 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.kafka.core.DefaultKafkaConsumerFactory;
 import org.springframework.kafka.core.DefaultKafkaProducerFactory;
 import org.springframework.kafka.core.KafkaTemplate;
-import org.springframework.kafka.support.serializer.JsonSerializer;
 import org.springframework.kafka.test.EmbeddedKafkaBroker;
 import org.springframework.kafka.test.context.EmbeddedKafka;
 import org.springframework.kafka.test.utils.KafkaTestUtils;
@@ -40,11 +43,14 @@ import static org.awaitility.Awaitility.await;
 @EmbeddedKafka(
         partitions = 1,
         topics = {
-                "amazon.env.order-management.orders.pub",
-                "amazon.env.order-management.payments.pub"
+                "amazon.env.order-management.orders.created.pub",
+                "amazon.env.order-management.payments.completed.pub",
+                "amazon.env.order-management.payments.failed.pub"
         }
 )
 class PaymentIntegrationTest {
+
+    private static final String MOCK_SCHEMA_REGISTRY = "mock://test";
 
     static final PostgreSQLContainer<?> postgres = new PostgreSQLContainer<>("postgres:16");
 
@@ -57,6 +63,7 @@ class PaymentIntegrationTest {
         registry.add("spring.datasource.url", postgres::getJdbcUrl);
         registry.add("spring.datasource.username", postgres::getUsername);
         registry.add("spring.datasource.password", postgres::getPassword);
+        registry.add("spring.kafka.properties.schema.registry.url", () -> MOCK_SCHEMA_REGISTRY);
     }
 
     @Autowired
@@ -78,11 +85,13 @@ class PaymentIntegrationTest {
         Map<String, Object> consumerProps = KafkaTestUtils.consumerProps(
                 "test-group-consumer", "true", embeddedKafkaBroker);
         consumerProps.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
-        consumerProps.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
-        Consumer<String, String> consumer = new DefaultKafkaConsumerFactory<String, String>(consumerProps)
+        consumerProps.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, KafkaAvroDeserializer.class);
+        consumerProps.put("schema.registry.url", MOCK_SCHEMA_REGISTRY);
+        consumerProps.put("specific.avro.reader", "true");
+        Consumer<String, Object> consumer = new DefaultKafkaConsumerFactory<String, Object>(consumerProps)
                 .createConsumer();
         embeddedKafkaBroker.consumeFromAnEmbeddedTopic(
-                consumer, "amazon.env.order-management.payments.pub");
+                consumer, "amazon.env.order-management.payments.completed.pub");
 
         publishOrderCreatedEvent(orderId, paymentId, new BigDecimal("50.00"));
 
@@ -93,13 +102,13 @@ class PaymentIntegrationTest {
             assertThat(payment.get().getOrderId()).isEqualTo(orderId);
         });
 
-        ConsumerRecords<String, String> records = KafkaTestUtils.getRecords(consumer, Duration.ofSeconds(5));
+        ConsumerRecords<String, Object> records = KafkaTestUtils.getRecords(consumer, Duration.ofSeconds(5));
         consumer.close();
 
         assertThat(records.count()).isEqualTo(1);
-        String payload = records.iterator().next().value();
-        assertThat(payload).contains("\"paymentId\"");
-        assertThat(payload).contains("\"orderId\"");
+        PaymentCompletedEvent event = (PaymentCompletedEvent) records.iterator().next().value();
+        assertThat(event.getPaymentId()).isEqualTo(paymentId.toString());
+        assertThat(event.getOrderId()).isEqualTo(orderId.toString());
     }
 
     @Test
@@ -120,14 +129,21 @@ class PaymentIntegrationTest {
     private void publishOrderCreatedEvent(UUID orderId, UUID paymentId, BigDecimal amount) {
         Map<String, Object> producerProps = KafkaTestUtils.producerProps(embeddedKafkaBroker);
         producerProps.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class);
-        producerProps.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, JsonSerializer.class);
+        producerProps.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, KafkaAvroSerializer.class);
+        producerProps.put("schema.registry.url", MOCK_SCHEMA_REGISTRY);
+        producerProps.put("value.subject.name.strategy", TopicRecordNameStrategy.class.getName());
 
         KafkaTemplate<String, OrderCreatedEvent> template = new KafkaTemplate<>(
                 new DefaultKafkaProducerFactory<>(producerProps));
 
-        OrderCreatedEvent event = new OrderCreatedEvent("ORDER_CREATED", orderId, amount, paymentId);
+        OrderCreatedEvent event = OrderCreatedEvent.newBuilder()
+                .setOrderId(orderId.toString())
+                .setAmount(amount.toPlainString())
+                .setPaymentId(paymentId.toString())
+                .build();
+
         ProducerRecord<String, OrderCreatedEvent> record = new ProducerRecord<>(
-                "amazon.env.order-management.orders.pub", orderId.toString(), event);
+                "amazon.env.order-management.orders.created.pub", orderId.toString(), event);
 
         template.send(record);
         template.flush();

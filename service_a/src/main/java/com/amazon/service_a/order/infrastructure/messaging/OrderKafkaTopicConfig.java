@@ -14,7 +14,7 @@ public class OrderKafkaTopicConfig {
     private final KafkaTopicsConfig kafkaTopicsConfig;
 
     @Bean
-    public NewTopic ordersTopic() {
-        return TopicBuilder.name(kafkaTopicsConfig.getOrders()).build();
+    public NewTopic ordersCreatedTopic() {
+        return TopicBuilder.name(kafkaTopicsConfig.getOrdersCreated()).build();
     }
 }

@@ -14,7 +14,12 @@ public class PaymentKafkaTopicConfig {
     private final KafkaTopicsConfig kafkaTopicsConfig;
 
     @Bean
-    public NewTopic paymentsTopic() {
-        return TopicBuilder.name(kafkaTopicsConfig.getPayments()).build();
+    public NewTopic paymentsCompletedTopic() {
+        return TopicBuilder.name(kafkaTopicsConfig.getPaymentsCompleted()).build();
+    }
+
+    @Bean
+    public NewTopic paymentsFailedTopic() {
+        return TopicBuilder.name(kafkaTopicsConfig.getPaymentsFailed()).build();
     }
 }

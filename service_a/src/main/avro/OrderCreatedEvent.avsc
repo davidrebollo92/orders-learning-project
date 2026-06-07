@@ -1,0 +1,10 @@
+{
+  "type": "record",
+  "name": "OrderCreatedEvent",
+  "namespace": "com.amazon.avro",
+  "fields": [
+    {"name": "orderId",   "type": "string"},
+    {"name": "amount",    "type": "string"},
+    {"name": "paymentId", "type": "string"}
+  ]
+}

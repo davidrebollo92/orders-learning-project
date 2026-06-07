@@ -1,0 +1,9 @@
+{
+  "type": "record",
+  "name": "PaymentCompletedEvent",
+  "namespace": "com.amazon.avro",
+  "fields": [
+    {"name": "paymentId", "type": "string"},
+    {"name": "orderId",   "type": "string"}
+  ]
+}

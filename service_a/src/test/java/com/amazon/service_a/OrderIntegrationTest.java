@@ -1,10 +1,12 @@
 package com.amazon.service_a;
 
+import com.amazon.avro.OrderCreatedEvent;
 import com.amazon.service_a.order.domain.Payment;
 import com.amazon.service_a.order.infrastructure.http.dto.CreateOrderRequest;
 import com.amazon.service_a.order.infrastructure.persistence.JpaOrderRepository;
 import com.amazon.service_a.order.infrastructure.persistence.OrderEntity;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.confluent.kafka.serializers.KafkaAvroDeserializer;
 import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
@@ -44,11 +46,14 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @EmbeddedKafka(
         partitions = 1,
         topics = {
-                "amazon.env.order-management.orders.pub",
-                "amazon.env.order-management.payments.pub"
+                "amazon.env.order-management.orders.created.pub",
+                "amazon.env.order-management.payments.completed.pub",
+                "amazon.env.order-management.payments.failed.pub"
         }
 )
 class OrderIntegrationTest {
+
+    private static final String MOCK_SCHEMA_REGISTRY = "mock://test";
 
     static final PostgreSQLContainer<?> postgres = new PostgreSQLContainer<>("postgres:16");
 
@@ -61,6 +66,7 @@ class OrderIntegrationTest {
         registry.add("spring.datasource.url", postgres::getJdbcUrl);
         registry.add("spring.datasource.username", postgres::getUsername);
         registry.add("spring.datasource.password", postgres::getPassword);
+        registry.add("spring.kafka.properties.schema.registry.url", () -> MOCK_SCHEMA_REGISTRY);
     }
 
     @Autowired
@@ -101,11 +107,13 @@ class OrderIntegrationTest {
         Map<String, Object> consumerProps = KafkaTestUtils.consumerProps(
                 "test-group-producer", "true", embeddedKafkaBroker);
         consumerProps.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
-        consumerProps.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
-        Consumer<String, String> consumer = new DefaultKafkaConsumerFactory<String, String>(consumerProps)
+        consumerProps.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, KafkaAvroDeserializer.class);
+        consumerProps.put("schema.registry.url", MOCK_SCHEMA_REGISTRY);
+        consumerProps.put("specific.avro.reader", "true");
+        Consumer<String, Object> consumer = new DefaultKafkaConsumerFactory<String, Object>(consumerProps)
                 .createConsumer();
         embeddedKafkaBroker.consumeFromAnEmbeddedTopic(
-                consumer, "amazon.env.order-management.orders.pub");
+                consumer, "amazon.env.order-management.orders.created.pub");
 
         CreateOrderRequest request = new CreateOrderRequest("laptop", new BigDecimal("10.00"));
         mockMvc.perform(post("/orders")
@@ -113,14 +121,14 @@ class OrderIntegrationTest {
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isCreated());
 
-        ConsumerRecords<String, String> records = KafkaTestUtils.getRecords(consumer, Duration.ofSeconds(5));
+        ConsumerRecords<String, Object> records = KafkaTestUtils.getRecords(consumer, Duration.ofSeconds(5));
         consumer.close();
 
         assertThat(records.count()).isEqualTo(1);
-        String payload = records.iterator().next().value();
-        assertThat(payload).contains("\"orderId\"");
-        assertThat(payload).contains("\"paymentId\"");
-        assertThat(payload).contains("\"amount\"");
+        OrderCreatedEvent event = (OrderCreatedEvent) records.iterator().next().value();
+        assertThat(event.getOrderId()).isNotNull();
+        assertThat(event.getPaymentId()).isNotNull();
+        assertThat(event.getAmount()).isNotNull();
     }
 
     @Test

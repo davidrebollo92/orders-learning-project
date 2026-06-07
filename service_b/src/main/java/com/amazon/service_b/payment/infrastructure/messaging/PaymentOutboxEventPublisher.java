@@ -1,17 +1,22 @@
 package com.amazon.service_b.payment.infrastructure.messaging;
 
+import com.amazon.avro.PaymentCompletedEvent;
+import com.amazon.avro.PaymentFailedEvent;
 import com.amazon.service_b.payment.domain.Payment;
 import com.amazon.service_b.payment.domain.PaymentEventPublisher;
-import com.amazon.service_b.payment.infrastructure.messaging.dto.PaymentCompletedEvent;
-import com.amazon.service_b.payment.infrastructure.messaging.dto.PaymentFailedEvent;
 import com.amazon.service_b.payment.infrastructure.persistence.JpaOutboxEventRepository;
 import com.amazon.service_b.payment.infrastructure.persistence.OutboxEventEntity;
 import com.amazon.service_boot.core.infrastructure.messaging.KafkaTopicsConfig;
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
+import org.apache.avro.io.DatumWriter;
+import org.apache.avro.io.EncoderFactory;
+import org.apache.avro.specific.SpecificDatumWriter;
+import org.apache.avro.specific.SpecificRecord;
 import org.springframework.stereotype.Component;
 
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.UUID;
 
@@ -20,46 +25,54 @@ import java.util.UUID;
 public class PaymentOutboxEventPublisher implements PaymentEventPublisher {
 
     private final JpaOutboxEventRepository jpaOutboxEventRepository;
-    private final ObjectMapper objectMapper;
     private final KafkaTopicsConfig kafkaTopicsConfig;
 
     @Override
     public void publishPaymentCompleted(Payment payment) {
-        PaymentCompletedEvent event = new PaymentCompletedEvent("PAYMENT_COMPLETED", payment.id(), payment.orderId());
+        PaymentCompletedEvent event = PaymentCompletedEvent.newBuilder()
+                .setPaymentId(payment.id().toString())
+                .setOrderId(payment.orderId().toString())
+                .build();
 
-        try {
-            String payload = objectMapper.writeValueAsString(event);
-
-            jpaOutboxEventRepository.save(new OutboxEventEntity(
-                    UUID.randomUUID(),
-                    payment.id(),
-                    kafkaTopicsConfig.getPayments(),
-                    payload,
-                    Instant.now(),
-                    null
-            ));
-        } catch (JsonProcessingException e) {
-            throw new RuntimeException("Failed to serialize PaymentCompletedEvent", e);
-        }
+        jpaOutboxEventRepository.save(new OutboxEventEntity(
+                UUID.randomUUID(),
+                payment.id(),
+                kafkaTopicsConfig.getPaymentsCompleted(),
+                toJson(event),
+                PaymentCompletedEvent.class.getName(),
+                Instant.now(),
+                null
+        ));
     }
 
     @Override
     public void publishPaymentFailed(Payment payment) {
-        PaymentFailedEvent event = new PaymentFailedEvent("PAYMENT_FAILED", payment.id(), payment.orderId());
+        PaymentFailedEvent event = PaymentFailedEvent.newBuilder()
+                .setPaymentId(payment.id().toString())
+                .setOrderId(payment.orderId().toString())
+                .build();
 
+        jpaOutboxEventRepository.save(new OutboxEventEntity(
+                UUID.randomUUID(),
+                payment.id(),
+                kafkaTopicsConfig.getPaymentsFailed(),
+                toJson(event),
+                PaymentFailedEvent.class.getName(),
+                Instant.now(),
+                null
+        ));
+    }
+
+    private String toJson(SpecificRecord record) {
         try {
-            String payload = objectMapper.writeValueAsString(event);
-
-            jpaOutboxEventRepository.save(new OutboxEventEntity(
-                    UUID.randomUUID(),
-                    payment.id(),
-                    kafkaTopicsConfig.getPayments(),
-                    payload,
-                    Instant.now(),
-                    null
-            ));
-        } catch (JsonProcessingException e) {
-            throw new RuntimeException("Failed to serialize PaymentFailedEvent", e);
+            ByteArrayOutputStream out = new ByteArrayOutputStream();
+            DatumWriter<SpecificRecord> writer = new SpecificDatumWriter<>(record.getSchema());
+            var encoder = EncoderFactory.get().jsonEncoder(record.getSchema(), out);
+            writer.write(record, encoder);
+            encoder.flush();
+            return out.toString(StandardCharsets.UTF_8);
+        } catch (IOException e) {
+            throw new RuntimeException("Failed to serialize Avro record", e);
         }
     }
 }

@@ -1,8 +1,9 @@
 app:
   kafka:
     topics:
-      orders: amazon.env.order-management.orders.pub
-      payments: amazon.env.order-management.payments.pub
+      orders-created: amazon.env.order-management.orders.created.pub
+      payments-completed: amazon.env.order-management.payments.completed.pub
+      payments-failed: amazon.env.order-management.payments.failed.pub
 spring:
   application:
     name: service_b
@@ -13,19 +14,14 @@ spring:
     driver-class-name: org.postgresql.Driver
   kafka:
     bootstrap-servers: localhost:9092
-    producer:
-      key-serializer: org.apache.kafka.common.serialization.StringSerializer
-      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
-      properties:
-        spring.json.type.mapping: paymentCompleted:com.amazon.service_b.payment.infrastructure.messaging.dto.PaymentCompletedEvent
+    properties:
+      schema.registry.url: http://localhost:8081
     consumer:
       group-id: payment-processor
       key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
-      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      value-deserializer: io.confluent.kafka.serializers.KafkaAvroDeserializer
       properties:
-        spring.json.trusted.packages: com.amazon.service_b.payment.infrastructure.messaging.dto
-        spring.json.use.type.headers: false
-        spring.json.value.default.type: com.amazon.service_b.payment.infrastructure.messaging.dto.OrderCreatedEvent
+        specific.avro.reader: true
   liquibase:
     change-log: classpath:db/changelog/db.changelog-master.yaml
   jpa:

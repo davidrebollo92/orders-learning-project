@@ -28,6 +28,8 @@ public class OutboxEventEntity {
 
     private String payload;
 
+    private String eventType;
+
     private Instant occurredAt;
 
     private Instant publishedAt;

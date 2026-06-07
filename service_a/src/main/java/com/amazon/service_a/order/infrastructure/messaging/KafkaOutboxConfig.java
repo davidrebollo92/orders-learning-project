@@ -1,6 +1,6 @@
 package com.amazon.service_a.order.infrastructure.messaging;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import io.confluent.kafka.serializers.KafkaAvroSerializer;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.common.serialization.StringSerializer;
 import org.springframework.beans.factory.annotation.Value;
@@ -16,18 +16,15 @@ import java.util.Map;
 @EnableScheduling
 public class KafkaOutboxConfig {
 
-    @Bean
-    public ObjectMapper objectMapper() {
-        return new ObjectMapper();
-    }
-
     @Bean("outboxKafkaTemplate")
-    public KafkaTemplate<String, String> outboxKafkaTemplate(
-            @Value("${spring.kafka.bootstrap-servers}") String bootstrapServers) {
+    public KafkaTemplate<String, Object> outboxKafkaTemplate(
+            @Value("${spring.kafka.bootstrap-servers}") String bootstrapServers,
+            @Value("${spring.kafka.properties.schema.registry.url}") String schemaRegistryUrl) {
         Map<String, Object> props = Map.of(
                 ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers,
                 ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class,
-                ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, StringSerializer.class
+                ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, KafkaAvroSerializer.class,
+                "schema.registry.url", schemaRegistryUrl
         );
         return new KafkaTemplate<>(new DefaultKafkaProducerFactory<>(props));
     }
