@@ -25,8 +25,8 @@ public record Order(UUID id, String name, Money amount, State state, Payment pay
     }
 
     public Order addPayment() {
-        final Payment payment = new Payment(UUID.randomUUID(), Payment.State.PENDING);
-        return new Order(id, name, amount, state, payment);
+        Payment payment = new Payment(UUID.randomUUID(), Payment.State.PENDING);
+        return toBuilder().withPayment(payment).build();
     }
 
     public Order completePayment() {

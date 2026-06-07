@@ -21,6 +21,7 @@ class OrderTest {
         assertThat(order.id()).isNotNull();
         assertThat(order.name()).isEqualTo("laptop");
         assertThat(order.amount()).isEqualTo(amount);
+        assertThat(order.state()).isEqualTo(Order.State.CREATED);
         assertThat(order.payment()).isNull();
     }
 
@@ -59,5 +60,26 @@ class OrderTest {
 
         assertThatThrownBy(order::completePayment)
                 .isInstanceOf(PaymentAlreadyPaidException.class);
+    }
+
+    @Test
+    void cancel_returnsOrderWithCancelledStateAndFailedPayment() {
+        Order order = Order.create("laptop", new Money(new BigDecimal("10.00"))).addPayment();
+
+        Order cancelled = order.cancel();
+
+        assertThat(cancelled.state()).isEqualTo(Order.State.CANCELLED);
+        assertThat(cancelled.payment().state()).isEqualTo(Payment.State.FAILED);
+        assertThat(cancelled.payment().id()).isEqualTo(order.payment().id());
+    }
+
+    @Test
+    void cancel_isIdempotent_whenPaymentAlreadyFailed() {
+        Order order = Order.create("laptop", new Money(new BigDecimal("10.00"))).addPayment().cancel();
+
+        Order cancelledAgain = order.cancel();
+
+        assertThat(cancelledAgain.state()).isEqualTo(Order.State.CANCELLED);
+        assertThat(cancelledAgain.payment().state()).isEqualTo(Payment.State.FAILED);
     }
 }

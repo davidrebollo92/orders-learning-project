@@ -4,6 +4,7 @@ import com.amazon.avro.OrderCreatedEvent;
 import com.amazon.service_a.order.domain.Payment;
 import com.amazon.service_a.order.infrastructure.http.dto.CreateOrderRequest;
 import com.amazon.service_a.order.infrastructure.persistence.JpaOrderRepository;
+import com.amazon.service_a.order.infrastructure.persistence.JpaOutboxEventRepository;
 import com.amazon.service_a.order.infrastructure.persistence.OrderEntity;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.confluent.kafka.serializers.KafkaAvroDeserializer;
@@ -78,10 +79,14 @@ class OrderIntegrationTest {
     private JpaOrderRepository jpaOrderRepository;
 
     @Autowired
+    private JpaOutboxEventRepository jpaOutboxEventRepository;
+
+    @Autowired
     private EmbeddedKafkaBroker embeddedKafkaBroker;
 
     @BeforeEach
     void cleanUp() {
+        jpaOutboxEventRepository.deleteAll();
         jpaOrderRepository.deleteAll();
     }
 

@@ -52,4 +52,32 @@ class PaymentTest {
         assertThatThrownBy(() -> new Payment(UUID.randomUUID(), UUID.randomUUID(), Payment.State.PAID, null))
                 .isInstanceOf(InvalidPaymentStateException.class);
     }
+
+    @Test
+    void fail_returnsPaymentWithFailedState() {
+        Payment payment = Payment.create(UUID.randomUUID(), UUID.randomUUID());
+
+        Payment failed = payment.fail();
+
+        assertThat(failed.state()).isEqualTo(Payment.State.FAILED);
+        assertThat(failed.id()).isEqualTo(payment.id());
+    }
+
+    @Test
+    void fail_returnsItself_whenAlreadyFailed() {
+        Payment payment = Payment.create(UUID.randomUUID(), UUID.randomUUID()).fail();
+
+        Payment result = payment.fail();
+
+        assertThat(result).isSameAs(payment);
+    }
+
+    @Test
+    void fail_throwsPaymentAlreadyPaidException_whenAlreadyPaid() {
+        Transaction transaction = Transaction.create(new Money(new BigDecimal("50.00")));
+        Payment payment = Payment.create(UUID.randomUUID(), UUID.randomUUID()).pay(transaction);
+
+        assertThatThrownBy(payment::fail)
+                .isInstanceOf(PaymentAlreadyPaidException.class);
+    }
 }

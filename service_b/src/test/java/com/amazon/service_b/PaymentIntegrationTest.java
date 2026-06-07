@@ -3,6 +3,7 @@ package com.amazon.service_b;
 import com.amazon.avro.OrderCreatedEvent;
 import com.amazon.avro.PaymentCompletedEvent;
 import com.amazon.service_b.payment.domain.Payment;
+import com.amazon.service_b.payment.infrastructure.persistence.JpaOutboxEventRepository;
 import com.amazon.service_b.payment.infrastructure.persistence.JpaPaymentRepository;
 import com.amazon.service_b.payment.infrastructure.persistence.PaymentEntity;
 import io.confluent.kafka.serializers.KafkaAvroDeserializer;
@@ -70,10 +71,14 @@ class PaymentIntegrationTest {
     private JpaPaymentRepository jpaPaymentRepository;
 
     @Autowired
+    private JpaOutboxEventRepository jpaOutboxEventRepository;
+
+    @Autowired
     private EmbeddedKafkaBroker embeddedKafkaBroker;
 
     @BeforeEach
     void cleanUp() {
+        jpaOutboxEventRepository.deleteAll();
         jpaPaymentRepository.deleteAll();
     }
 
