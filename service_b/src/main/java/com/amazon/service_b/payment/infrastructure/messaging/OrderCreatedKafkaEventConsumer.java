@@ -3,7 +3,6 @@ package com.amazon.service_b.payment.infrastructure.messaging;
 import com.amazon.avro.OrderCreatedEvent;
 import com.amazon.service_b.payment.aplication.PaymentProcessor;
 import com.amazon.service_b.payment.domain.Payment;
-import com.amazon.service_b.payment.domain.exception.InsufficientFundsException;
 import com.amazon.service_b.payment.domain.exception.PaymentAlreadyPaidException;
 import com.amazon.service_boot.core.domain.vo.Money;
 import lombok.RequiredArgsConstructor;
@@ -39,8 +38,6 @@ public class OrderCreatedKafkaEventConsumer {
             Money amount = new Money(new BigDecimal(event.getAmount()));
 
             paymentProcessor.process(payment, amount);
-        } catch (InsufficientFundsException ex) {
-            log.warn("Payment rejected due to insufficient funds: {}", ex.getMessage());
         } catch (PaymentAlreadyPaidException ex) {
             log.warn("Duplicate OrderCreatedEvent received: {}", ex.getMessage());
         }

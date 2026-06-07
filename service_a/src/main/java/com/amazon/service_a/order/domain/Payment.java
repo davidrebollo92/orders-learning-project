@@ -24,8 +24,12 @@ public record Payment(UUID id, State state) {
     }
 
     public Payment fail() {
-        if (this.state != State.PENDING) {
+        if (this.state == State.PAID) {
             throw new PaymentAlreadyPaidException(id);
+        }
+
+        if (this.state == State.FAILED) {
+            return this;
         }
 
         return toBuilder().withState(State.FAILED).build();

@@ -27,4 +27,31 @@ class PaymentTest {
         assertThatThrownBy(payment::pay)
                 .isInstanceOf(PaymentAlreadyPaidException.class);
     }
+
+    @Test
+    void fail_returnsPaymentWithFailedState() {
+        Payment payment = new Payment(UUID.randomUUID(), Payment.State.PENDING);
+
+        Payment failed = payment.fail();
+
+        assertThat(failed.state()).isEqualTo(Payment.State.FAILED);
+        assertThat(failed.id()).isEqualTo(payment.id());
+    }
+
+    @Test
+    void fail_returnsItself_whenAlreadyFailed() {
+        Payment payment = new Payment(UUID.randomUUID(), Payment.State.FAILED);
+
+        Payment result = payment.fail();
+
+        assertThat(result).isSameAs(payment);
+    }
+
+    @Test
+    void fail_throwsPaymentAlreadyPaidException_whenAlreadyPaid() {
+        Payment payment = new Payment(UUID.randomUUID(), Payment.State.PAID);
+
+        assertThatThrownBy(payment::fail)
+                .isInstanceOf(PaymentAlreadyPaidException.class);
+    }
 }
