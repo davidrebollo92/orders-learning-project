@@ -117,7 +117,6 @@ No HTTP endpoints — fully event-driven.
       mapper/      → persistence mappers (@Component)
       *.java       → JPA entities, JPA repositories, repository adapter
     messaging/
-      dto/         → Kafka event DTOs (one per event type)
       *.java       → Kafka consumers, outbox publisher, topic config
     gateway/       → adapters for external services (e.g. SimulatedPaymentGateway) — service_b only
 ```
@@ -150,9 +149,9 @@ POST /orders (service_a)
   → OrderCreator
       → saves Order (CREATED) + Payment (PENDING) via JPA cascade → `orders` + `payments` tables
       → OrderOutboxEventPublisher.publishOrderCreated()
-          → saves OrderCreatedEvent to `outbox_events` table (same transaction)
+          → serializes OrderCreatedEvent as Avro JSON → saves to `outbox_events` (same transaction)
   → OutboxScheduler (every 1s)
-      → reads unpublished outbox_events, sends to Kafka topic `orders`, marks published
+      → reads unpublished outbox_events, deserializes Avro JSON → sends as Avro binary to topic `ordersCreated`, marks published
 
 OrderCreatedKafkaEventConsumer (service_b)
   → PaymentProcessor
@@ -162,22 +161,24 @@ OrderCreatedKafkaEventConsumer (service_b)
             → creates Transaction, pays Payment
             → saves Payment (PAID) + Transaction → `payments` + `transactions` tables
             → PaymentOutboxEventPublisher.publishPaymentCompleted()
-                → saves PaymentCompletedEvent (type=PAYMENT_COMPLETED) to `outbox_events` (same transaction)
+                → serializes PaymentCompletedEvent as Avro JSON → saves to `outbox_events` (same transaction)
           failure path (amount > 1000 → InsufficientFundsException):
             → payment.fail() → Payment (FAILED)
             → saves Payment (FAILED) → `payments` table
             → PaymentOutboxEventPublisher.publishPaymentFailed()
-                → saves PaymentFailedEvent (type=PAYMENT_FAILED) to `outbox_events` (same transaction)
+                → serializes PaymentFailedEvent as Avro JSON → saves to `outbox_events` (same transaction)
   → OutboxScheduler (every 1s)
-      → reads unpublished outbox_events, sends to Kafka topic `payments`, marks published
+      → reads unpublished outbox_events, deserializes Avro JSON → sends as Avro binary to topic `paymentsCompleted` or `paymentsFailed`, marks published
 
-PaymentKafkaEventConsumer (service_a) — deserializes as PaymentEvent, routes by `type`
-  type=PAYMENT_COMPLETED → PaymentCompleter
+PaymentKafkaEventConsumer (service_a) — two dedicated listeners, one per topic
+  consumeCompleted (topic=paymentsCompleted) → PaymentCompleter
+      → KafkaAvroDeserializer instantiates PaymentCompletedEvent (specific.avro.reader=true)
       → loads Order by orderId → if not found → log error (OrderNotFoundException), discard
       → checks paymentId matches order's payment → if not → log error (PaymentNotFoundException), discard
       → calls order.completePayment() → Order (PAID), payment.pay() → Payment (PAID)
       → calls orderRepository.updatePayment() → UPDATE `orders` SET state=PAID, UPDATE `payments` SET state=PAID
-  type=PAYMENT_FAILED → OrderCanceller
+  consumeFailed (topic=paymentsFailed) → OrderCanceller
+      → KafkaAvroDeserializer instantiates PaymentFailedEvent (specific.avro.reader=true)
       → loads Order by orderId → if not found → log error (OrderNotFoundException), discard
       → checks paymentId matches order's payment → if not → log error (PaymentNotFoundException), discard
       → calls order.cancel() → Order (CANCELLED), payment.fail() → Payment (FAILED)
@@ -189,19 +190,23 @@ PaymentKafkaEventConsumer (service_a) — deserializes as PaymentEvent, routes b
 Both services use the **Transactional Outbox Pattern** to guarantee event publishing:
 
 - `OrderOutboxEventPublisher` / `PaymentOutboxEventPublisher` — implement the domain port by saving the event as a row in `outbox_events` within the same transaction as the business operation. No direct Kafka write from the service.
-- `OutboxEventEntity` — JPA entity (`outbox_events` table) with fields: `id`, `aggregateId`, `topic`, `payload` (JSON), `occurredAt`, `publishedAt` (null until sent).
-- `OutboxScheduler` — `@Scheduled(fixedDelay = 1000)`. Queries `findByPublishedAtIsNull()`, sends each event via `KafkaTemplate`, then sets `publishedAt`. Runs in both services independently.
-- `KafkaOutboxConfig` — defines the `@Bean("outboxKafkaTemplate")` with `StringSerializer` for key and value. The payload is pre-serialized JSON stored in `outbox_events.payload`, so `StringSerializer` is required — using `JsonSerializer` would double-serialize it. As a consequence, Kafka messages sent by the Outbox carry no `__TypeId__` headers; consumers are configured with `spring.json.use.type.headers: false` and `spring.json.value.default.type` to deserialize without headers.
+- `OutboxEventEntity` — JPA entity (`outbox_events` table) with fields: `id`, `aggregateId`, `topic`, `payload` (Avro JSON), `eventType` (fully qualified Avro class name), `occurredAt`, `publishedAt` (null until sent).
+- `OutboxScheduler` — `@Scheduled(fixedDelay = 1000)`. Queries `findByPublishedAtIsNull()`, deserializes the Avro JSON payload using `SpecificData.get().getSchema(clazz)` + `SpecificDatumReader`, sends each event via `KafkaTemplate<String, Object>` (serialized as Avro binary by `KafkaAvroSerializer`), then sets `publishedAt`. Runs in both services independently.
+- `KafkaOutboxConfig` — defines the `@Bean("outboxKafkaTemplate")` with `StringSerializer` for key and `KafkaAvroSerializer` for value. The `eventType` column stores the fully qualified Avro class name (e.g. `com.amazon.avro.OrderCreatedEvent`) so the scheduler knows which schema to use for deserialization.
 
-### Kafka event DTOs
+### Avro schemas and Kafka topics
 
-Each service defines its own local event DTOs in `infrastructure/messaging/dto/` — no cross-service imports:
-- `service_a/order/infrastructure/messaging/dto/` — `OrderCreatedEvent` (producer), `PaymentEvent` (consumer wrapper)
-- `service_b/payment/infrastructure/messaging/dto/` — `OrderCreatedEvent` (consumer), `PaymentCompletedEvent` (producer), `PaymentFailedEvent` (producer)
+Events are defined as **Avro schemas** (`src/main/avro/*.avsc`). The `avro-maven-plugin` generates Java classes in `target/generated-sources/avro/com/amazon/avro/` at `generate-sources` phase. Each service has its own copy of the schemas it uses (no cross-service imports). Schemas must be identical across services for Schema Registry compatibility.
 
-Both `PaymentCompletedEvent` and `PaymentFailedEvent` are published to the same topic `payments` with a `type` field (`PAYMENT_COMPLETED` / `PAYMENT_FAILED`). service_a deserializes both as `PaymentEvent` (a temporary common type pending Schema Registry implementation) and routes by `type`.
+**One event per topic** — each event type has a dedicated Kafka topic:
 
-All events include a `type` field for self-description. `PaymentEvent` in service_a is a temporary wrapper — when Schema Registry is implemented it will be replaced by `PaymentCompletedEvent` and `PaymentFailedEvent` with schema-based deserialization.
+| Event | Topic (app.kafka.topics key) | Topic name |
+|---|---|---|
+| `OrderCreatedEvent` | `ordersCreated` | `amazon.env.order-management.orders.created.pub` |
+| `PaymentCompletedEvent` | `paymentsCompleted` | `amazon.env.order-management.payments.completed.pub` |
+| `PaymentFailedEvent` | `paymentsFailed` | `amazon.env.order-management.payments.failed.pub` |
+
+Consumers use `KafkaAvroDeserializer` with `specific.avro.reader: true` — the deserializer reads the schema ID from the message (written by Schema Registry), fetches the schema, and instantiates the correct generated class. No manual type routing needed.
 
 ### Kafka error handling
 
@@ -290,6 +295,7 @@ DomainException (service_boot)
   - `outbox_events` → `OutboxEventEntity` (service_b, payment context)
   - All primary keys are `UUID` — no `@GeneratedValue`.
 - **Messaging**: Kafka at `localhost:9092` (host) / `kafka:19092` (Docker). Topics configured via `app.kafka.topics` in `KafkaTopicsConfig` (`@ConfigurationProperties` + `@Component`). Topics are auto-created on startup.
-- **Schema**: managed by **Liquibase** (`ddl-auto: validate` — Hibernate only validates, never alters). Changelogs live in `src/main/resources/db/changelog/`. The master file `db.changelog-master.yaml` includes changesets from `changes/`. To add a schema change, create a new `NNN_description.sql` file and add an `include` entry to the master — never modify existing changesets.
-  - service_a changelogs: `001_init_schema.sql` (orders, payments, outbox_events), `002_add_state_to_orders.sql` (adds `state VARCHAR(10)` column to `orders`)
-  - service_b changelogs: `001_init_schema.sql` (transactions, payments, outbox_events)
+- **Schema Registry**: Confluent Schema Registry at `localhost:8081` (host) / `schema-registry:8081` (Docker). URL configured via `spring.kafka.properties.schema.registry.url`. Used by `KafkaAvroSerializer` (producer) and `KafkaAvroDeserializer` (consumer) to register and resolve Avro schemas. In tests, `mock://test` replaces the real registry.
+- **DB Schema**: managed by **Liquibase** (`ddl-auto: validate` — Hibernate only validates, never alters). Changelogs live in `src/main/resources/db/changelog/`. The master file `db.changelog-master.yaml` includes changesets from `changes/`. To add a schema change, create a new `NNN_description.sql` file and add an `include` entry to the master — never modify existing changesets.
+  - service_a changelogs: `001_init_schema.sql` (orders, payments, outbox_events), `002_add_state_to_orders.sql` (adds `state VARCHAR(10)` to `orders`), `003_add_event_type_to_outbox.sql` (adds `event_type VARCHAR(255)` to `outbox_events`)
+  - service_b changelogs: `001_init_schema.sql` (transactions, payments, outbox_events), `002_add_event_type_to_outbox.sql` (adds `event_type VARCHAR(255)` to `outbox_events`)

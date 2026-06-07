@@ -14,23 +14,24 @@ Proyecto Maven multi-módulo con tres módulos (Java 21 / Spring Boot 4.0.6):
 - **DDD** — agregados, value objects, excepciones de dominio, factorías en el dominio
 - **Transactional Outbox** — los eventos se guardan en base de datos dentro de la misma transacción del negocio; un scheduler los publica a Kafka, garantizando consistencia sin two-phase commit
 - **Saga con compensación** — flujo distribuido coordinado por eventos; si el pago falla, service_b publica `PaymentFailedEvent` y service_a cancela la orden (`CANCELLED`)
+- **Avro + Schema Registry** — los eventos Kafka se serializan con Apache Avro; los schemas (`.avsc`) son la fuente de verdad y se registran en Confluent Schema Registry; un topic por tipo de evento
 - **Idempotencia** — los consumidores detectan y descartan eventos duplicados
 - **Migraciones con Liquibase** — el esquema de base de datos se gestiona mediante changelogs versionados; Hibernate solo valida, nunca altera
 
 ## Flujo
 
 **Happy path (importe ≤ 1000):**
-1. `POST /orders` crea una orden (`CREATED`) con un pago (`PENDING`) y guarda `OrderCreatedEvent` en `outbox_events` de forma atómica
-2. El `OutboxScheduler` de service_a publica el evento al topic `orders`
-3. service_b consume `OrderCreatedEvent`, cobra el pago vía `SimulatedPaymentGateway` y guarda `PaymentCompletedEvent` en su `outbox_events`
-4. El `OutboxScheduler` de service_b publica el evento al topic `payments`
-5. service_a consume el evento (type=`PAYMENT_COMPLETED`) y transiciona la orden a `PAID`
+1. `POST /orders` crea una orden (`CREATED`) con un pago (`PENDING`) y guarda `OrderCreatedEvent` (Avro) en `outbox_events` de forma atómica
+2. El `OutboxScheduler` de service_a publica el evento al topic `ordersCreated`
+3. service_b consume `OrderCreatedEvent`, cobra el pago vía `SimulatedPaymentGateway` y guarda `PaymentCompletedEvent` (Avro) en su `outbox_events`
+4. El `OutboxScheduler` de service_b publica el evento al topic `paymentsCompleted`
+5. service_a consume `PaymentCompletedEvent` y transiciona la orden a `PAID`
 
 **Flujo de compensación (importe > 1000):**
 1–2. Igual que arriba
-3. service_b detecta fondos insuficientes, falla el pago y guarda `PaymentFailedEvent` en su `outbox_events`
-4. El `OutboxScheduler` de service_b publica el evento al topic `payments`
-5. service_a consume el evento (type=`PAYMENT_FAILED`) y transiciona la orden a `CANCELLED`
+3. service_b detecta fondos insuficientes, falla el pago y guarda `PaymentFailedEvent` (Avro) en su `outbox_events`
+4. El `OutboxScheduler` de service_b publica el evento al topic `paymentsFailed`
+5. service_a consume `PaymentFailedEvent` y transiciona la orden a `CANCELLED`
 
 ## Gestión de errores Kafka
 
@@ -46,7 +47,7 @@ Los consumidores usan `@RetryableTopic` (3 reintentos, backoff exponencial). Las
 docker compose up -d
 ```
 
-Los servicios se construyen y arrancan automáticamente junto con la infraestructura (PostgreSQL × 2 + Kafka).
+Los servicios se construyen y arrancan automáticamente junto con la infraestructura (PostgreSQL × 2 + Kafka + Schema Registry).
 
 ## Endpoints (service_a)
 
