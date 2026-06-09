@@ -1,7 +1,7 @@
 package com.amazon.service_a.order.infrastructure.persistence.mapper;
 
 import com.amazon.service_a.order.domain.Order;
-import com.amazon.service_a.order.infrastructure.persistence.OrderEntity;
+import com.amazon.service_a.order.infrastructure.persistence.entity.OrderEntity;
 import com.amazon.service_boot.core.domain.vo.Money;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;

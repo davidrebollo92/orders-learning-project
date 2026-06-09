@@ -2,6 +2,7 @@ package com.amazon.service_a.order.infrastructure.persistence;
 
 import com.amazon.service_a.order.domain.Order;
 import com.amazon.service_a.order.domain.OrderRepository;
+import com.amazon.service_a.order.infrastructure.persistence.entity.OrderEntity;
 import com.amazon.service_a.order.infrastructure.persistence.mapper.OrderEntityMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;

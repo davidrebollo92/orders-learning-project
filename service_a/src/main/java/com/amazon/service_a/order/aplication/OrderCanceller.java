@@ -3,7 +3,6 @@ package com.amazon.service_a.order.aplication;
 import com.amazon.service_a.order.domain.Order;
 import com.amazon.service_a.order.domain.OrderRepository;
 import com.amazon.service_a.order.domain.exception.OrderNotFoundException;
-import com.amazon.service_a.order.domain.exception.PaymentAlreadyPaidException;
 import com.amazon.service_a.order.domain.exception.PaymentNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;

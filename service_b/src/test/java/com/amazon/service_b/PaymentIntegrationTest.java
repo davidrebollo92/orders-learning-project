@@ -5,7 +5,7 @@ import com.amazon.avro.PaymentCompletedEvent;
 import com.amazon.service_b.payment.domain.Payment;
 import com.amazon.service_b.payment.infrastructure.persistence.JpaOutboxEventRepository;
 import com.amazon.service_b.payment.infrastructure.persistence.JpaPaymentRepository;
-import com.amazon.service_b.payment.infrastructure.persistence.PaymentEntity;
+import com.amazon.service_b.payment.infrastructure.persistence.entity.PaymentEntity;
 import io.confluent.kafka.serializers.KafkaAvroDeserializer;
 import io.confluent.kafka.serializers.KafkaAvroSerializer;
 import io.confluent.kafka.serializers.subject.TopicRecordNameStrategy;

@@ -5,7 +5,7 @@ import com.amazon.service_a.order.domain.Payment;
 import com.amazon.service_a.order.infrastructure.http.dto.CreateOrderRequest;
 import com.amazon.service_a.order.infrastructure.persistence.JpaOrderRepository;
 import com.amazon.service_a.order.infrastructure.persistence.JpaOutboxEventRepository;
-import com.amazon.service_a.order.infrastructure.persistence.OrderEntity;
+import com.amazon.service_a.order.infrastructure.persistence.entity.OrderEntity;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.confluent.kafka.serializers.KafkaAvroDeserializer;
 import org.apache.kafka.clients.consumer.Consumer;

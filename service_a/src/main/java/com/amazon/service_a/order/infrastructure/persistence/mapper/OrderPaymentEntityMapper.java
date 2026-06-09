@@ -1,7 +1,7 @@
 package com.amazon.service_a.order.infrastructure.persistence.mapper;
 
 import com.amazon.service_a.order.domain.Payment;
-import com.amazon.service_a.order.infrastructure.persistence.OrderPaymentEntity;
+import com.amazon.service_a.order.infrastructure.persistence.entity.OrderPaymentEntity;
 import org.springframework.stereotype.Component;
 
 @Component

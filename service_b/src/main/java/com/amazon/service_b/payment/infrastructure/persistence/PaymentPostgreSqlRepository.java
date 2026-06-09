@@ -2,6 +2,7 @@ package com.amazon.service_b.payment.infrastructure.persistence;
 
 import com.amazon.service_b.payment.domain.Payment;
 import com.amazon.service_b.payment.domain.PaymentRepository;
+import com.amazon.service_b.payment.infrastructure.persistence.entity.PaymentEntity;
 import com.amazon.service_b.payment.infrastructure.persistence.mapper.PaymentEntityMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;

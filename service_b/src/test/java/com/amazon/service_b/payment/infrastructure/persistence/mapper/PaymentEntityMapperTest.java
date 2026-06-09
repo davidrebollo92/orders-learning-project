@@ -2,8 +2,8 @@ package com.amazon.service_b.payment.infrastructure.persistence.mapper;
 
 import com.amazon.service_b.payment.domain.Payment;
 import com.amazon.service_b.payment.domain.Transaction;
-import com.amazon.service_b.payment.infrastructure.persistence.PaymentEntity;
-import com.amazon.service_b.payment.infrastructure.persistence.TransactionEntity;
+import com.amazon.service_b.payment.infrastructure.persistence.entity.PaymentEntity;
+import com.amazon.service_b.payment.infrastructure.persistence.entity.TransactionEntity;
 import com.amazon.service_boot.core.domain.vo.Money;
 import org.junit.jupiter.api.Test;
 

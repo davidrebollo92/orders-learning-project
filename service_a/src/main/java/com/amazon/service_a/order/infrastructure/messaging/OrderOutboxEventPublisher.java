@@ -4,11 +4,12 @@ import com.amazon.avro.OrderCreatedEvent;
 import com.amazon.service_a.order.domain.Order;
 import com.amazon.service_a.order.domain.OrderEventPublisher;
 import com.amazon.service_a.order.infrastructure.persistence.JpaOutboxEventRepository;
-import com.amazon.service_a.order.infrastructure.persistence.OutboxEventEntity;
+import com.amazon.service_a.order.infrastructure.persistence.entity.OutboxEventEntity;
 import com.amazon.service_boot.core.infrastructure.messaging.KafkaTopicsConfig;
 import lombok.RequiredArgsConstructor;
 import org.apache.avro.io.DatumWriter;
 import org.apache.avro.io.EncoderFactory;
+import org.apache.avro.io.JsonEncoder;
 import org.apache.avro.specific.SpecificDatumWriter;
 import org.apache.avro.specific.SpecificRecord;
 import org.springframework.stereotype.Component;
@@ -49,9 +50,12 @@ public class OrderOutboxEventPublisher implements OrderEventPublisher {
         try {
             ByteArrayOutputStream out = new ByteArrayOutputStream();
             DatumWriter<SpecificRecord> writer = new SpecificDatumWriter<>(record.getSchema());
-            var encoder = EncoderFactory.get().jsonEncoder(record.getSchema(), out);
+
+            JsonEncoder encoder = EncoderFactory.get().jsonEncoder(record.getSchema(), out);
+
             writer.write(record, encoder);
             encoder.flush();
+
             return out.toString(StandardCharsets.UTF_8);
         } catch (IOException e) {
             throw new RuntimeException("Failed to serialize Avro record", e);

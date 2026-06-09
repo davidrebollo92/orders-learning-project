@@ -5,11 +5,12 @@ import com.amazon.avro.PaymentFailedEvent;
 import com.amazon.service_b.payment.domain.Payment;
 import com.amazon.service_b.payment.domain.PaymentEventPublisher;
 import com.amazon.service_b.payment.infrastructure.persistence.JpaOutboxEventRepository;
-import com.amazon.service_b.payment.infrastructure.persistence.OutboxEventEntity;
+import com.amazon.service_b.payment.infrastructure.persistence.entity.OutboxEventEntity;
 import com.amazon.service_boot.core.infrastructure.messaging.KafkaTopicsConfig;
 import lombok.RequiredArgsConstructor;
 import org.apache.avro.io.DatumWriter;
 import org.apache.avro.io.EncoderFactory;
+import org.apache.avro.io.JsonEncoder;
 import org.apache.avro.specific.SpecificDatumWriter;
 import org.apache.avro.specific.SpecificRecord;
 import org.springframework.stereotype.Component;
@@ -67,9 +68,12 @@ public class PaymentOutboxEventPublisher implements PaymentEventPublisher {
         try {
             ByteArrayOutputStream out = new ByteArrayOutputStream();
             DatumWriter<SpecificRecord> writer = new SpecificDatumWriter<>(record.getSchema());
-            var encoder = EncoderFactory.get().jsonEncoder(record.getSchema(), out);
+
+            JsonEncoder encoder = EncoderFactory.get().jsonEncoder(record.getSchema(), out);
+
             writer.write(record, encoder);
             encoder.flush();
+
             return out.toString(StandardCharsets.UTF_8);
         } catch (IOException e) {
             throw new RuntimeException("Failed to serialize Avro record", e);

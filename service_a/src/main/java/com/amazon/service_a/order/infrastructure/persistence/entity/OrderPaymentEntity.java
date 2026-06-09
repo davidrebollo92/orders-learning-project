@@ -1,4 +1,4 @@
-package com.amazon.service_a.order.infrastructure.persistence;
+package com.amazon.service_a.order.infrastructure.persistence.entity;
 
 import com.amazon.service_a.order.domain.Payment;
 import jakarta.persistence.*;

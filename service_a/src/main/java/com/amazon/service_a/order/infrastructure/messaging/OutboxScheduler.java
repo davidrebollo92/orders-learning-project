@@ -1,7 +1,7 @@
 package com.amazon.service_a.order.infrastructure.messaging;
 
 import com.amazon.service_a.order.infrastructure.persistence.JpaOutboxEventRepository;
-import com.amazon.service_a.order.infrastructure.persistence.OutboxEventEntity;
+import com.amazon.service_a.order.infrastructure.persistence.entity.OutboxEventEntity;
 import org.apache.avro.io.DecoderFactory;
 import org.apache.avro.specific.SpecificData;
 import org.apache.avro.specific.SpecificDatumReader;
@@ -54,9 +54,11 @@ public class OutboxScheduler {
     @SuppressWarnings("unchecked")
     private SpecificRecord fromJson(String json, String eventType) throws Exception {
         Class<? extends SpecificRecord> clazz = (Class<? extends SpecificRecord>) Class.forName(eventType);
+
         var schema = SpecificData.get().getSchema(clazz);
         var reader = new SpecificDatumReader<SpecificRecord>(schema);
         var decoder = DecoderFactory.get().jsonDecoder(schema, json);
+
         return reader.read(null, decoder);
     }
 }

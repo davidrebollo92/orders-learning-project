@@ -1,6 +1,7 @@
 package com.amazon.service_a.order.infrastructure.persistence;
 
 import com.amazon.service_a.order.domain.Payment;
+import com.amazon.service_a.order.infrastructure.persistence.entity.OrderPaymentEntity;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
