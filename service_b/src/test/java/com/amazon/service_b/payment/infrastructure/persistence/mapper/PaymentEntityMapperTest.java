@@ -1,7 +1,6 @@
 package com.amazon.service_b.payment.infrastructure.persistence.mapper;
 
 import com.amazon.service_b.payment.domain.Payment;
-import com.amazon.service_b.payment.domain.Transaction;
 import com.amazon.service_b.payment.infrastructure.persistence.entity.PaymentEntity;
 import com.amazon.service_b.payment.infrastructure.persistence.entity.TransactionEntity;
 import com.amazon.service_boot.core.domain.vo.Money;
@@ -19,8 +18,9 @@ class PaymentEntityMapperTest {
 
     @Test
     void toEntity_mapsAllFieldsWithTransaction() {
-        Payment payment = Payment.create(UUID.randomUUID(), UUID.randomUUID())
-                .pay(Transaction.create(new Money(new BigDecimal("50.00"))));
+        UUID transactionId = UUID.randomUUID();
+        Money amount = new Money(new BigDecimal("50.00"));
+        Payment payment = Payment.create(UUID.randomUUID(), UUID.randomUUID(), amount).pay(transactionId);
 
         PaymentEntity entity = mapper.toEntity(payment);
 
@@ -28,12 +28,14 @@ class PaymentEntityMapperTest {
         assertThat(entity.getOrderId()).isEqualTo(payment.orderId());
         assertThat(entity.getState()).isEqualTo(Payment.State.PAID);
         assertThat(entity.getTransaction()).isNotNull();
+        assertThat(entity.getTransaction().getId()).isEqualTo(transactionId);
         assertThat(entity.getTransaction().getAmount()).isEqualByComparingTo(new BigDecimal("50.00"));
     }
 
     @Test
     void toEntity_mapsAllFieldsWithoutTransaction() {
-        Payment payment = Payment.create(UUID.randomUUID(), UUID.randomUUID());
+        Money amount = new Money(new BigDecimal("50.00"));
+        Payment payment = Payment.create(UUID.randomUUID(), UUID.randomUUID(), amount);
 
         PaymentEntity entity = mapper.toEntity(payment);
 

@@ -80,6 +80,7 @@
                             </goals>
                             <configuration>
                                 <stringType>String</stringType>
+                                <sourceDirectory>${project.basedir}/src/main/spec/avro</sourceDirectory>
                             </configuration>
                         </execution>
                     </executions>

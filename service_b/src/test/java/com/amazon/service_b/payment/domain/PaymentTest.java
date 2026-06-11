@@ -1,6 +1,5 @@
 package com.amazon.service_b.payment.domain;
 
-import com.amazon.service_b.payment.domain.exception.InvalidPaymentStateException;
 import com.amazon.service_b.payment.domain.exception.PaymentAlreadyPaidException;
 import com.amazon.service_boot.core.domain.vo.Money;
 import org.junit.jupiter.api.Test;
@@ -13,49 +12,45 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class PaymentTest {
 
+    private final UUID id = UUID.randomUUID();
+    private final UUID orderId = UUID.randomUUID();
+    private final Money amount = new Money(new BigDecimal("50.00"));
+
     @Test
     void create_returnsPaymentInPendingState() {
-        UUID id = UUID.randomUUID();
-        UUID orderId = UUID.randomUUID();
-
-        Payment payment = Payment.create(id, orderId);
+        Payment payment = Payment.create(id, orderId, amount);
 
         assertThat(payment.id()).isEqualTo(id);
         assertThat(payment.orderId()).isEqualTo(orderId);
         assertThat(payment.state()).isEqualTo(Payment.State.PENDING);
-        assertThat(payment.transaction()).isNull();
+        assertThat(payment.transaction().id()).isNull();
+        assertThat(payment.transaction().amount()).isEqualTo(amount);
     }
 
     @Test
     void pay_returnsPaymentWithPaidStateAndTransaction() {
-        Payment payment = Payment.create(UUID.randomUUID(), UUID.randomUUID());
-        Transaction transaction = Transaction.create(new Money(new BigDecimal("50.00")));
+        Payment payment = Payment.create(UUID.randomUUID(), UUID.randomUUID(), amount);
+        UUID transactionId = UUID.randomUUID();
 
-        Payment paid = payment.pay(transaction);
+        Payment paid = payment.pay(transactionId);
 
         assertThat(paid.state()).isEqualTo(Payment.State.PAID);
-        assertThat(paid.transaction()).isEqualTo(transaction);
+        assertThat(paid.transaction().id()).isEqualTo(transactionId);
+        assertThat(paid.transaction().amount()).isEqualTo(amount);
         assertThat(paid.id()).isEqualTo(payment.id());
     }
 
     @Test
     void pay_throwsPaymentAlreadyPaidException_whenAlreadyPaid() {
-        Transaction transaction = Transaction.create(new Money(new BigDecimal("50.00")));
-        Payment payment = Payment.create(UUID.randomUUID(), UUID.randomUUID()).pay(transaction);
+        Payment payment = Payment.create(UUID.randomUUID(), UUID.randomUUID(), amount).pay(UUID.randomUUID());
 
-        assertThatThrownBy(() -> payment.pay(transaction))
+        assertThatThrownBy(() -> payment.pay(UUID.randomUUID()))
                 .isInstanceOf(PaymentAlreadyPaidException.class);
     }
 
     @Test
-    void constructor_throwsInvalidPaymentStateException_whenPaidWithoutTransaction() {
-        assertThatThrownBy(() -> new Payment(UUID.randomUUID(), UUID.randomUUID(), Payment.State.PAID, null))
-                .isInstanceOf(InvalidPaymentStateException.class);
-    }
-
-    @Test
     void fail_returnsPaymentWithFailedState() {
-        Payment payment = Payment.create(UUID.randomUUID(), UUID.randomUUID());
+        Payment payment = Payment.create(UUID.randomUUID(), UUID.randomUUID(), amount);
 
         Payment failed = payment.fail();
 
@@ -65,7 +60,7 @@ class PaymentTest {
 
     @Test
     void fail_returnsItself_whenAlreadyFailed() {
-        Payment payment = Payment.create(UUID.randomUUID(), UUID.randomUUID()).fail();
+        Payment payment = Payment.create(UUID.randomUUID(), UUID.randomUUID(), amount).fail();
 
         Payment result = payment.fail();
 
@@ -74,8 +69,7 @@ class PaymentTest {
 
     @Test
     void fail_throwsPaymentAlreadyPaidException_whenAlreadyPaid() {
-        Transaction transaction = Transaction.create(new Money(new BigDecimal("50.00")));
-        Payment payment = Payment.create(UUID.randomUUID(), UUID.randomUUID()).pay(transaction);
+        Payment payment = Payment.create(UUID.randomUUID(), UUID.randomUUID(), amount).pay(UUID.randomUUID());
 
         assertThatThrownBy(payment::fail)
                 .isInstanceOf(PaymentAlreadyPaidException.class);

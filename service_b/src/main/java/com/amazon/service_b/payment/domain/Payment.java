@@ -1,7 +1,7 @@
 package com.amazon.service_b.payment.domain;
 
-import com.amazon.service_b.payment.domain.exception.InvalidPaymentStateException;
 import com.amazon.service_b.payment.domain.exception.PaymentAlreadyPaidException;
+import com.amazon.service_boot.core.domain.vo.Money;
 import lombok.AccessLevel;
 import lombok.Builder;
 
@@ -16,22 +16,13 @@ public record Payment(UUID id, UUID orderId, State state, Transaction transactio
         FAILED
     }
 
-    public Payment {
-        if (state == State.PAID && transaction == null) {
-            throw new InvalidPaymentStateException();
-        }
-    }
 
-    public static Payment create(UUID id, UUID orderId) {
-        return new Payment(id, orderId, State.PENDING, null);
-    }
-
-    public Payment pay(Transaction transaction) {
+    public Payment pay(UUID transactionId) {
         if (this.state == State.PAID) {
             throw new PaymentAlreadyPaidException(this.id);
         }
 
-        return toBuilder().withState(State.PAID).withTransaction(transaction).build();
+        return toBuilder().withState(State.PAID).withTransaction(transaction.complete(transactionId)).build();
     }
 
     public Payment fail() {
@@ -44,6 +35,16 @@ public record Payment(UUID id, UUID orderId, State state, Transaction transactio
         }
 
         return toBuilder().withState(State.FAILED).build();
+    }
+
+    public Money getAmount() {
+        return transaction.amount();
+    }
+
+    public static Payment create(UUID id, UUID orderId, Money money) {
+        final Transaction transaction = Transaction.create(money);
+
+        return new Payment(id, orderId, State.PENDING, transaction);
     }
 }
 

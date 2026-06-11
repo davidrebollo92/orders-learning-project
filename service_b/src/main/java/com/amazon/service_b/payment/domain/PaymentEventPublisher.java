@@ -1,7 +1,5 @@
 package com.amazon.service_b.payment.domain;
 
 public interface PaymentEventPublisher {
-    void publishPaymentCompleted(Payment payment);
-
-    void publishPaymentFailed(Payment payment);
+    void publish(Payment payment);
 }

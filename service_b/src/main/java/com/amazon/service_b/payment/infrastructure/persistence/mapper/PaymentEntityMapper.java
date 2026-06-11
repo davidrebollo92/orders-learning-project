@@ -16,7 +16,9 @@ public class PaymentEntityMapper {
         entity.setId(payment.id());
         entity.setOrderId(payment.orderId());
         entity.setState(payment.state());
-        entity.setTransaction(payment.transaction() != null ? transactionEntityMapper.toEntity(payment.transaction()) : null);
+        entity.setTransaction(payment.transaction() != null && payment.transaction().id() != null
+                ? transactionEntityMapper.toEntity(payment.transaction())
+                : null);
 
         return entity;
     }

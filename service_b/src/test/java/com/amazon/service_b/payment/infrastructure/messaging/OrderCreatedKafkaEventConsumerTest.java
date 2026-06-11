@@ -1,7 +1,7 @@
 package com.amazon.service_b.payment.infrastructure.messaging;
 
 import com.amazon.avro.OrderCreatedEvent;
-import com.amazon.service_b.payment.aplication.PaymentProcessor;
+import com.amazon.service_b.payment.aplication.PaymentCreator;
 import com.amazon.service_b.payment.domain.exception.PaymentAlreadyPaidException;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -20,7 +20,7 @@ import static org.mockito.Mockito.verify;
 class OrderCreatedKafkaEventConsumerTest {
 
     @Mock
-    private PaymentProcessor paymentProcessor;
+    private PaymentCreator paymentCreator;
 
     @InjectMocks
     private OrderCreatedKafkaEventConsumer consumer;
@@ -34,15 +34,15 @@ class OrderCreatedKafkaEventConsumerTest {
     }
 
     @Test
-    void consume_callsPaymentProcessor() {
+    void consume_callsPaymentCreator() {
         consumer.consume(event(UUID.randomUUID(), UUID.randomUUID()));
 
-        verify(paymentProcessor).process(any(), any());
+        verify(paymentCreator).create(any());
     }
 
     @Test
     void consume_doesNotThrow_whenPaymentAlreadyPaid() {
-        doThrow(new PaymentAlreadyPaidException(UUID.randomUUID())).when(paymentProcessor).process(any(), any());
+        doThrow(new PaymentAlreadyPaidException(UUID.randomUUID())).when(paymentCreator).create(any());
 
         assertThatNoException().isThrownBy(() -> consumer.consume(event(UUID.randomUUID(), UUID.randomUUID())));
     }

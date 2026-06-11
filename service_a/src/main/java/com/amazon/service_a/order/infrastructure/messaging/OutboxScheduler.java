@@ -44,6 +44,9 @@ public class OutboxScheduler {
 
                 outboxEvent.setPublishedAt(Instant.now());
 
+                // TODO: Delete outboxEvent record in DB
+                // If loop is not process correctly, trasactions will do rollback
+
                 log.debug("Outbox event published: topic={} aggregateId={}", outboxEvent.getTopic(), outboxEvent.getAggregateId());
             } catch (Exception e) {
                 throw new RuntimeException("Failed to publish outbox event id=" + outboxEvent.getId(), e);

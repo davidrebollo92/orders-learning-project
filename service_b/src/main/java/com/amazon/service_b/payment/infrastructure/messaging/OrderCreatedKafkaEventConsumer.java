@@ -1,7 +1,7 @@
 package com.amazon.service_b.payment.infrastructure.messaging;
 
 import com.amazon.avro.OrderCreatedEvent;
-import com.amazon.service_b.payment.aplication.PaymentProcessor;
+import com.amazon.service_b.payment.aplication.PaymentCreator;
 import com.amazon.service_b.payment.domain.Payment;
 import com.amazon.service_b.payment.domain.exception.PaymentAlreadyPaidException;
 import com.amazon.service_boot.core.domain.vo.Money;
@@ -24,7 +24,7 @@ public class OrderCreatedKafkaEventConsumer {
 
     private static final Logger log = LoggerFactory.getLogger(OrderCreatedKafkaEventConsumer.class);
 
-    private final PaymentProcessor paymentProcessor;
+    private final PaymentCreator paymentCreator;
 
     @RetryableTopic(
             attempts = "3",
@@ -34,10 +34,9 @@ public class OrderCreatedKafkaEventConsumer {
     @KafkaListener(topics = "#{@kafkaTopicsConfig.ordersCreated}", groupId = "payment-processor")
     public void consume(OrderCreatedEvent event) {
         try {
-            Payment payment = Payment.create(UUID.fromString(event.getPaymentId()), UUID.fromString(event.getOrderId()));
-            Money amount = new Money(new BigDecimal(event.getAmount()));
+            Payment payment = Payment.create(UUID.fromString(event.getPaymentId()), UUID.fromString(event.getOrderId()), new Money(new BigDecimal(event.getAmount())));
 
-            paymentProcessor.process(payment, amount);
+            paymentCreator.create(payment);
         } catch (PaymentAlreadyPaidException ex) {
             log.warn("Duplicate OrderCreatedEvent received: {}", ex.getMessage());
         }
