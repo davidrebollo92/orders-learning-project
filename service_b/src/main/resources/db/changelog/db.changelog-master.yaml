@@ -3,3 +3,5 @@ databaseChangeLog:
       file: db/changelog/changes/001_init_schema.sql
   - include:
       file: db/changelog/changes/002_add_event_type_to_outbox.sql
+  - include:
+      file: db/changelog/changes/003_alter_outbox_payload_to_bytea.sql

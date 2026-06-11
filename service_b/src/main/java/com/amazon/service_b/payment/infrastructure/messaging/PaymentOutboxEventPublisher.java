@@ -9,16 +9,15 @@ import com.amazon.service_b.payment.infrastructure.persistence.JpaOutboxEventRep
 import com.amazon.service_b.payment.infrastructure.persistence.entity.OutboxEventEntity;
 import com.amazon.service_boot.core.infrastructure.messaging.KafkaTopicsConfig;
 import lombok.RequiredArgsConstructor;
+import org.apache.avro.io.BinaryEncoder;
 import org.apache.avro.io.DatumWriter;
 import org.apache.avro.io.EncoderFactory;
-import org.apache.avro.io.JsonEncoder;
 import org.apache.avro.specific.SpecificDatumWriter;
 import org.apache.avro.specific.SpecificRecord;
 import org.springframework.stereotype.Component;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.UUID;
 
@@ -48,7 +47,7 @@ public class PaymentOutboxEventPublisher implements PaymentEventPublisher {
                 UUID.randomUUID(),
                 payment.id(),
                 kafkaTopicsConfig.getPaymentsCompleted(),
-                toJson(event),
+                toAvroBytes(event),
                 PaymentCompletedEvent.class.getName(),
                 Instant.now(),
                 null
@@ -65,24 +64,24 @@ public class PaymentOutboxEventPublisher implements PaymentEventPublisher {
                 UUID.randomUUID(),
                 payment.id(),
                 kafkaTopicsConfig.getPaymentsFailed(),
-                toJson(event),
+                toAvroBytes(event),
                 PaymentFailedEvent.class.getName(),
                 Instant.now(),
                 null
         ));
     }
 
-    private String toJson(SpecificRecord record) {
+    private byte[] toAvroBytes(SpecificRecord record) {
         try {
             ByteArrayOutputStream out = new ByteArrayOutputStream();
             DatumWriter<SpecificRecord> writer = new SpecificDatumWriter<>(record.getSchema());
 
-            JsonEncoder encoder = EncoderFactory.get().jsonEncoder(record.getSchema(), out);
+            BinaryEncoder encoder = EncoderFactory.get().binaryEncoder(out, null);
 
             writer.write(record, encoder);
             encoder.flush();
 
-            return out.toString(StandardCharsets.UTF_8);
+            return out.toByteArray();
         } catch (IOException e) {
             throw new RuntimeException("Failed to serialize Avro record", e);
         }
