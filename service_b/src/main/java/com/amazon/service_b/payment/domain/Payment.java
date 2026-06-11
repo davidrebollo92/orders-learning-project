@@ -38,7 +38,7 @@ public record Payment(UUID id, UUID orderId, State state, Transaction transactio
     }
 
     public Money getAmount() {
-        return transaction.amount();
+        return transaction.money();
     }
 
     public static Payment create(UUID id, UUID orderId, Money money) {

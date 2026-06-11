@@ -7,13 +7,13 @@ import lombok.Builder;
 import java.util.UUID;
 
 @Builder(access = AccessLevel.PRIVATE, setterPrefix = "with", toBuilder = true)
-public record Transaction(UUID id, Money amount) {
+public record Transaction(UUID id, Money money) {
 
     public Transaction complete(UUID id) {
         return toBuilder().withId(id).build();
     }
 
-    public static Transaction create(Money amount) {
-        return new Transaction(null, amount);
+    public static Transaction create(Money money) {
+        return new Transaction(null, money);
     }
 }

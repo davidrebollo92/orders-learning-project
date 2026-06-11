@@ -22,7 +22,7 @@ class OrderDtoMapperTest {
         Order order = mapper.toDomain(request);
 
         assertThat(order.name()).isEqualTo("laptop");
-        assertThat(order.amount()).isEqualTo(new Money(new BigDecimal("10.00")));
+        assertThat(order.money()).isEqualTo(new Money(new BigDecimal("10.00")));
         assertThat(order.id()).isNotNull();
         assertThat(order.payment()).isNull();
     }

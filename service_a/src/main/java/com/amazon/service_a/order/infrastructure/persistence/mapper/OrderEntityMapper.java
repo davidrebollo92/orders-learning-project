@@ -18,7 +18,7 @@ public class OrderEntityMapper {
 
         entity.setId(order.id());
         entity.setName(order.name());
-        entity.setAmount(order.amount().amount());
+        entity.setAmount(order.money().amount());
         entity.setState(order.state());
         entity.setPayment(paymentEntityMapper.toEntity(order.payment()));
 

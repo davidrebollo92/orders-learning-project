@@ -34,6 +34,6 @@ class TransactionEntityMapperTest {
         Transaction transaction = mapper.toDomain(entity);
 
         assertThat(transaction.id()).isEqualTo(id);
-        assertThat(transaction.amount()).isEqualTo(new Money(new BigDecimal("75.00")));
+        assertThat(transaction.money()).isEqualTo(new Money(new BigDecimal("75.00")));
     }
 }

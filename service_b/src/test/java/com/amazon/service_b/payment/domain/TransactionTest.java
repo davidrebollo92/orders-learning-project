@@ -12,22 +12,22 @@ class TransactionTest {
 
     @Test
     void create_returnsTransactionWithNullIdAndAmount() {
-        Money amount = new Money(new BigDecimal("100.00"));
+        Money money = new Money(new BigDecimal("100.00"));
 
-        Transaction transaction = Transaction.create(amount);
+        Transaction transaction = Transaction.create(money);
 
         assertThat(transaction.id()).isNull();
-        assertThat(transaction.amount()).isEqualTo(amount);
+        assertThat(transaction.money()).isEqualTo(money);
     }
 
     @Test
     void complete_returnsTransactionWithAssignedId() {
-        Money amount = new Money(new BigDecimal("100.00"));
+        Money money = new Money(new BigDecimal("100.00"));
         UUID transactionId = UUID.randomUUID();
 
-        Transaction transaction = Transaction.create(amount).complete(transactionId);
+        Transaction transaction = Transaction.create(money).complete(transactionId);
 
         assertThat(transaction.id()).isEqualTo(transactionId);
-        assertThat(transaction.amount()).isEqualTo(amount);
+        assertThat(transaction.money()).isEqualTo(money);
     }
 }

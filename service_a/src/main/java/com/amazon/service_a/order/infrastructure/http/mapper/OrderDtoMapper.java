@@ -22,7 +22,7 @@ public class OrderDtoMapper {
         return new OrderResponse(
                 order.id(),
                 order.name(),
-                order.amount().amount(),
+                order.money().amount(),
                 order.state().name(),
                 paymentResponse
         );

@@ -15,7 +15,7 @@ public class TransactionEntityMapper {
         TransactionEntity entity = new TransactionEntity();
 
         entity.setId(transaction.id());
-        entity.setAmount(transaction.amount().amount());
+        entity.setAmount(transaction.money().amount());
 
         return entity;
     }

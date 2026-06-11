@@ -19,8 +19,8 @@ class PaymentEntityMapperTest {
     @Test
     void toEntity_mapsAllFieldsWithTransaction() {
         UUID transactionId = UUID.randomUUID();
-        Money amount = new Money(new BigDecimal("50.00"));
-        Payment payment = Payment.create(UUID.randomUUID(), UUID.randomUUID(), amount).pay(transactionId);
+        Money money = new Money(new BigDecimal("50.00"));
+        Payment payment = Payment.create(UUID.randomUUID(), UUID.randomUUID(), money).pay(transactionId);
 
         PaymentEntity entity = mapper.toEntity(payment);
 
@@ -34,8 +34,8 @@ class PaymentEntityMapperTest {
 
     @Test
     void toEntity_mapsAllFieldsWithoutTransaction() {
-        Money amount = new Money(new BigDecimal("50.00"));
-        Payment payment = Payment.create(UUID.randomUUID(), UUID.randomUUID(), amount);
+        Money money = new Money(new BigDecimal("50.00"));
+        Payment payment = Payment.create(UUID.randomUUID(), UUID.randomUUID(), money);
 
         PaymentEntity entity = mapper.toEntity(payment);
 
@@ -68,7 +68,7 @@ class PaymentEntityMapperTest {
         assertThat(payment.state()).isEqualTo(Payment.State.PAID);
         assertThat(payment.transaction()).isNotNull();
         assertThat(payment.transaction().id()).isEqualTo(transactionId);
-        assertThat(payment.transaction().amount()).isEqualTo(new Money(new BigDecimal("50.00")));
+        assertThat(payment.transaction().money()).isEqualTo(new Money(new BigDecimal("50.00")));
     }
 
     @Test

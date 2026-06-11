@@ -49,7 +49,7 @@ class OrderEntityMapperTest {
 
         assertThat(order.id()).isEqualTo(orderId);
         assertThat(order.name()).isEqualTo("laptop");
-        assertThat(order.amount()).isEqualTo(new Money(new BigDecimal("10.00")));
+        assertThat(order.money()).isEqualTo(new Money(new BigDecimal("10.00")));
         assertThat(order.payment().id()).isEqualTo(paymentId);
         assertThat(order.payment().state()).isEqualTo(Payment.State.PAID);
     }

@@ -14,22 +14,22 @@ class OrderTest {
 
     @Test
     void create_returnsOrderWithGivenNameAndAmount() {
-        Money amount = new Money(new BigDecimal("10.00"));
+        Money money = new Money(new BigDecimal("10.00"));
 
-        Order order = Order.create("laptop", amount);
+        Order order = Order.create("laptop", money);
 
         assertThat(order.id()).isNotNull();
         assertThat(order.name()).isEqualTo("laptop");
-        assertThat(order.amount()).isEqualTo(amount);
+        assertThat(order.money()).isEqualTo(money);
         assertThat(order.state()).isEqualTo(Order.State.CREATED);
         assertThat(order.payment()).isNull();
     }
 
     @Test
     void create_throwsInvalidOrderAmountException_whenAmountIsBelowMinimum() {
-        Money amount = new Money(BigDecimal.ZERO);
+        Money money = new Money(BigDecimal.ZERO);
 
-        assertThatThrownBy(() -> Order.create("laptop", amount))
+        assertThatThrownBy(() -> Order.create("laptop", money))
                 .isInstanceOf(InvalidOrderAmountException.class);
     }
 
