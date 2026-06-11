@@ -107,7 +107,7 @@ No HTTP endpoints — fully event-driven.
   domain/
     exception/     → DomainException hierarchy + error codes as string constants
     *.java         → domain model (immutable records) + port interfaces (no Spring, no JPA)
-  aplication/      → service classes (e.g. OrderCreator, PaymentProcessor). No use case interfaces.
+  aplication/      → service classes (e.g. OrderCreator, PaymentCreator). No use case interfaces.
   infrastructure/
     http/
       dto/         → request/response DTOs
@@ -137,7 +137,7 @@ KafkaConsumer → PaymentCompleter → OrderRepository
              → OrderCanceller   → OrderRepository
 
 # service_b
-KafkaConsumer → PaymentProcessor → PaymentRepository (interface) ← PaymentPostgreSqlRepository → JpaPaymentRepository
+KafkaConsumer → PaymentCreator → PaymentRepository (interface) ← PaymentPostgreSqlRepository → JpaPaymentRepository
                                  → PaymentEventPublisher (interface) ← PaymentOutboxEventPublisher → JpaOutboxEventRepository
                                  → PaymentGateway (interface) ← SimulatedPaymentGateway
 ```
@@ -149,26 +149,26 @@ POST /orders (service_a)
   → OrderCreator
       → saves Order (CREATED) + Payment (PENDING) via JPA cascade → `orders` + `payments` tables
       → OrderOutboxEventPublisher.publishOrderCreated()
-          → serializes OrderCreatedEvent as Avro JSON → saves to `outbox_events` (same transaction)
+          → serializes OrderCreatedEvent as Avro binary → saves to `outbox_events` (same transaction)
   → OutboxScheduler (every 1s)
-      → reads unpublished outbox_events, deserializes Avro JSON → sends as Avro binary to topic `ordersCreated`, marks published
+      → reads unpublished outbox_events, deserializes Avro binary → sends as Avro binary to topic `ordersCreated`, marks published
 
 OrderCreatedKafkaEventConsumer (service_b)
-  → PaymentProcessor
+  → PaymentCreator
       → idempotency check: if payment already in `payments` → throw PaymentAlreadyPaidException → log warn, discard
-      → PaymentGateway.charge(amount):
+      → PaymentGateway.process(payment):
           happy path (amount ≤ 1000):
             → creates Transaction, pays Payment
             → saves Payment (PAID) + Transaction → `payments` + `transactions` tables
             → PaymentOutboxEventPublisher.publishPaymentCompleted()
-                → serializes PaymentCompletedEvent as Avro JSON → saves to `outbox_events` (same transaction)
+                → serializes PaymentCompletedEvent as Avro binary → saves to `outbox_events` (same transaction)
           failure path (amount > 1000 → InsufficientFundsException):
             → payment.fail() → Payment (FAILED)
             → saves Payment (FAILED) → `payments` table
             → PaymentOutboxEventPublisher.publishPaymentFailed()
-                → serializes PaymentFailedEvent as Avro JSON → saves to `outbox_events` (same transaction)
+                → serializes PaymentFailedEvent as Avro binary → saves to `outbox_events` (same transaction)
   → OutboxScheduler (every 1s)
-      → reads unpublished outbox_events, deserializes Avro JSON → sends as Avro binary to topic `paymentsCompleted` or `paymentsFailed`, marks published
+      → reads unpublished outbox_events, deserializes Avro binary → sends as Avro binary to topic `paymentsCompleted` or `paymentsFailed`, marks published
 
 PaymentKafkaEventConsumer (service_a) — two dedicated listeners, one per topic
   consumeCompleted (topic=paymentsCompleted) → PaymentCompleter
@@ -190,8 +190,8 @@ PaymentKafkaEventConsumer (service_a) — two dedicated listeners, one per topic
 Both services use the **Transactional Outbox Pattern** to guarantee event publishing:
 
 - `OrderOutboxEventPublisher` / `PaymentOutboxEventPublisher` — implement the domain port by saving the event as a row in `outbox_events` within the same transaction as the business operation. No direct Kafka write from the service.
-- `OutboxEventEntity` — JPA entity (`outbox_events` table) with fields: `id`, `aggregateId`, `topic`, `payload` (Avro JSON), `eventType` (fully qualified Avro class name), `occurredAt`, `publishedAt` (null until sent).
-- `OutboxScheduler` — `@Scheduled(fixedDelay = 1000)`. Queries `findByPublishedAtIsNull()`, deserializes the Avro JSON payload using `SpecificData.get().getSchema(clazz)` + `SpecificDatumReader`, sends each event via `KafkaTemplate<String, Object>` (serialized as Avro binary by `KafkaAvroSerializer`), then sets `publishedAt`. Runs in both services independently.
+- `OutboxEventEntity` — JPA entity (`outbox_events` table) with fields: `id`, `aggregateId`, `topic`, `payload` (Avro binary, `BYTEA`), `eventType` (fully qualified Avro class name), `occurredAt`, `publishedAt` (null until sent).
+- `OutboxScheduler` — `@Scheduled(fixedDelay = 1000)`. Queries `findByPublishedAtIsNull()`, deserializes the Avro binary payload using `SpecificData.get().getSchema(clazz)` + `SpecificDatumReader` + `BinaryDecoder`, sends each event via `KafkaTemplate<String, Object>` (serialized as Avro binary by `KafkaAvroSerializer`), then sets `publishedAt`. Runs in both services independently.
 - `KafkaOutboxConfig` — defines the `@Bean("outboxKafkaTemplate")` with `StringSerializer` for key and `KafkaAvroSerializer` for value. The `eventType` column stores the fully qualified Avro class name (e.g. `com.amazon.avro.OrderCreatedEvent`) so the scheduler knows which schema to use for deserialization.
 
 ### Avro schemas and Kafka topics
@@ -236,8 +236,8 @@ return created;
 - **Domain objects are immutable records** — `Order`, `Payment`, `Transaction`, `Money` are Java records.
 - **UUIDs generated in domain** — factory methods call `UUID.randomUUID()`. No `@GeneratedValue` in JPA entities.
 - **`@Builder(toBuilder = true)`** — all domain records with `@Builder` use `toBuilder = true`. Mutation methods (e.g. `pay()`, `completePayment()`) must use `toBuilder()` to copy existing fields and only override what changes. Never use `builder()` from within a mutation method.
-- **`Order.create(String name, Money amount)`** — static factory. Creates an `Order` with `state = CREATED` and `payment = null`. Call `addPayment()` to attach a `Payment` in `PENDING` state before persisting.
-- **`payment/domain/Payment.create(UUID id, UUID orderId)`** — factory for new payments in `PENDING` state (service_b).
+- **`Order.create(String name, Money money)`** — static factory. Creates an `Order` with `state = CREATED` and `payment = null`. Call `addPayment()` to attach a `Payment` in `PENDING` state before persisting.
+- **`payment/domain/Payment.create(UUID id, UUID orderId, Money money)`** — factory for new payments in `PENDING` state (service_b).
 - **`Money`** lives in `service_boot/core/domain/vo/`. `isBelowMinimum()` returns `boolean`. Do not duplicate minimum-amount validation in DTOs.
 - **HTTP mappers** and **persistence mappers** are `@Component` beans injected by constructor — never static.
 - **DTOs** live in `infrastructure/http/dto/`. Domain objects are never serialized directly as API responses.
@@ -297,5 +297,5 @@ DomainException (service_boot)
 - **Messaging**: Kafka at `localhost:9092` (host) / `kafka:19092` (Docker). Topics configured via `app.kafka.topics` in `KafkaTopicsConfig` (`@ConfigurationProperties` + `@Component`). Topics are auto-created on startup.
 - **Schema Registry**: Confluent Schema Registry at `localhost:8081` (host) / `schema-registry:8081` (Docker). URL configured via `spring.kafka.properties.schema.registry.url`. Used by `KafkaAvroSerializer` (producer) and `KafkaAvroDeserializer` (consumer) to register and resolve Avro schemas. In tests, `mock://test` replaces the real registry.
 - **DB Schema**: managed by **Liquibase** (`ddl-auto: validate` — Hibernate only validates, never alters). Changelogs live in `src/main/resources/db/changelog/`. The master file `db.changelog-master.yaml` includes changesets from `changes/`. To add a schema change, create a new `NNN_description.sql` file and add an `include` entry to the master — never modify existing changesets.
-  - service_a changelogs: `001_init_schema.sql` (orders, payments, outbox_events), `002_add_state_to_orders.sql` (adds `state VARCHAR(10)` to `orders`), `003_add_event_type_to_outbox.sql` (adds `event_type VARCHAR(255)` to `outbox_events`)
-  - service_b changelogs: `001_init_schema.sql` (transactions, payments, outbox_events), `002_add_event_type_to_outbox.sql` (adds `event_type VARCHAR(255)` to `outbox_events`)
+  - service_a changelogs: `001_init_schema.sql` (orders, payments, outbox_events), `002_add_state_to_orders.sql` (adds `state VARCHAR(10)` to `orders`), `003_add_event_type_to_outbox.sql` (adds `event_type VARCHAR(255)` to `outbox_events`), `004_alter_outbox_payload_to_bytea.sql` (converts `payload` from `TEXT` to `BYTEA`)
+  - service_b changelogs: `001_init_schema.sql` (transactions, payments, outbox_events), `002_add_event_type_to_outbox.sql` (adds `event_type VARCHAR(255)` to `outbox_events`), `003_alter_outbox_payload_to_bytea.sql` (converts `payload` from `TEXT` to `BYTEA`)

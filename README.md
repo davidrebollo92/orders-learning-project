@@ -12,7 +12,7 @@ Proyecto Maven multi-módulo con tres módulos (Java 21 / Spring Boot 4.0.6):
 
 - **Hexagonal Architecture** — dominio aislado de infraestructura mediante puertos e interfaces
 - **DDD** — agregados, value objects, excepciones de dominio, factorías en el dominio
-- **Transactional Outbox** — los eventos se guardan en base de datos dentro de la misma transacción del negocio; un scheduler los publica a Kafka, garantizando consistencia sin two-phase commit
+- **Transactional Outbox** — los eventos se serializan como Avro binario y se guardan en base de datos (`BYTEA`) dentro de la misma transacción del negocio; un scheduler los publica a Kafka, garantizando consistencia sin two-phase commit
 - **Saga con compensación** — flujo distribuido coordinado por eventos; si el pago falla, service_b publica `PaymentFailedEvent` y service_a cancela la orden (`CANCELLED`)
 - **Avro + Schema Registry** — los eventos Kafka se serializan con Apache Avro; los schemas (`.avsc`) son la fuente de verdad y se registran en Confluent Schema Registry; un topic por tipo de evento
 - **Idempotencia** — los consumidores detectan y descartan eventos duplicados
@@ -21,15 +21,15 @@ Proyecto Maven multi-módulo con tres módulos (Java 21 / Spring Boot 4.0.6):
 ## Flujo
 
 **Happy path (importe ≤ 1000):**
-1. `POST /orders` crea una orden (`CREATED`) con un pago (`PENDING`) y guarda `OrderCreatedEvent` (Avro) en `outbox_events` de forma atómica
-2. El `OutboxScheduler` de service_a publica el evento al topic `ordersCreated`
-3. service_b consume `OrderCreatedEvent`, cobra el pago vía `SimulatedPaymentGateway` y guarda `PaymentCompletedEvent` (Avro) en su `outbox_events`
+1. `POST /orders` crea una orden (`CREATED`) con un pago (`PENDING`) y guarda `OrderCreatedEvent` serializado como Avro binario (`BYTEA`) en `outbox_events` de forma atómica
+2. El `OutboxScheduler` de service_a deserializa el payload binario y publica el evento al topic `ordersCreated`
+3. service_b consume `OrderCreatedEvent`, cobra el pago vía `SimulatedPaymentGateway` y guarda `PaymentCompletedEvent` (Avro binario) en su `outbox_events`
 4. El `OutboxScheduler` de service_b publica el evento al topic `paymentsCompleted`
 5. service_a consume `PaymentCompletedEvent` y transiciona la orden a `PAID`
 
 **Flujo de compensación (importe > 1000):**
 1–2. Igual que arriba
-3. service_b detecta fondos insuficientes, falla el pago y guarda `PaymentFailedEvent` (Avro) en su `outbox_events`
+3. service_b detecta fondos insuficientes, falla el pago y guarda `PaymentFailedEvent` (Avro binario) en su `outbox_events`
 4. El `OutboxScheduler` de service_b publica el evento al topic `paymentsFailed`
 5. service_a consume `PaymentFailedEvent` y transiciona la orden a `CANCELLED`
 
