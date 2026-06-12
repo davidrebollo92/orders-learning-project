@@ -7,15 +7,20 @@ import com.amazon.service_a.order.aplication.PaymentCompleter;
 import com.amazon.service_a.order.domain.exception.OrderNotFoundException;
 import com.amazon.service_a.order.domain.exception.PaymentAlreadyPaidException;
 import com.amazon.service_a.order.domain.exception.PaymentNotFoundException;
+import com.amazon.service_a.order.infrastructure.persistence.JpaDeadLetterEventRepository;
+import com.amazon.service_a.order.infrastructure.persistence.entity.DeadLetterEventEntity;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.util.UUID;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatNoException;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.verify;
 
@@ -27,6 +32,9 @@ class PaymentKafkaEventConsumerTest {
 
     @Mock
     private OrderCanceller orderCanceller;
+
+    @Mock
+    private JpaDeadLetterEventRepository jpaDeadLetterEventRepository;
 
     @InjectMocks
     private PaymentKafkaEventConsumer consumer;
@@ -111,14 +119,45 @@ class PaymentKafkaEventConsumerTest {
     }
 
     @Test
-    void handleCompletedDlt_doesNotThrow() {
-        assertThatNoException().isThrownBy(() ->
-                consumer.handleCompletedDlt(completedEvent(UUID.randomUUID(), UUID.randomUUID())));
+    void handleDlt_savesPaymentCompletedEventToDeadLetterRepository() {
+        PaymentCompletedEvent event = completedEvent(UUID.randomUUID(), UUID.randomUUID());
+
+        consumer.handleDlt(event, "payments.completed-dlt", 0, 42L, "some error");
+
+        ArgumentCaptor<DeadLetterEventEntity> captor = ArgumentCaptor.forClass(DeadLetterEventEntity.class);
+        verify(jpaDeadLetterEventRepository).save(captor.capture());
+        DeadLetterEventEntity saved = captor.getValue();
+        assertThat(saved.getTopic()).isEqualTo("payments.completed-dlt");
+        assertThat(saved.getEventType()).isEqualTo(PaymentCompletedEvent.class.getName());
+        assertThat(saved.getExceptionMessage()).isEqualTo("some error");
+        assertThat(saved.getOriginalPartition()).isEqualTo(0);
+        assertThat(saved.getOriginalOffset()).isEqualTo(42L);
+        assertThat(saved.getPayload()).isNotEmpty();
+        assertThat(saved.getOccurredAt()).isNotNull();
     }
 
     @Test
-    void handleFailedDlt_doesNotThrow() {
+    void handleDlt_savesPaymentFailedEventToDeadLetterRepository() {
+        PaymentFailedEvent event = failedEvent(UUID.randomUUID(), UUID.randomUUID());
+
+        consumer.handleDlt(event, "payments.failed-dlt", 0, 7L, "some error");
+
+        ArgumentCaptor<DeadLetterEventEntity> captor = ArgumentCaptor.forClass(DeadLetterEventEntity.class);
+        verify(jpaDeadLetterEventRepository).save(captor.capture());
+        DeadLetterEventEntity saved = captor.getValue();
+        assertThat(saved.getTopic()).isEqualTo("payments.failed-dlt");
+        assertThat(saved.getEventType()).isEqualTo(PaymentFailedEvent.class.getName());
+        assertThat(saved.getExceptionMessage()).isEqualTo("some error");
+        assertThat(saved.getOriginalPartition()).isEqualTo(0);
+        assertThat(saved.getOriginalOffset()).isEqualTo(7L);
+        assertThat(saved.getPayload()).isNotEmpty();
+        assertThat(saved.getOccurredAt()).isNotNull();
+    }
+
+    @Test
+    void handleDlt_doesNotThrow_whenExceptionMessageIsNull() {
         assertThatNoException().isThrownBy(() ->
-                consumer.handleFailedDlt(failedEvent(UUID.randomUUID(), UUID.randomUUID())));
+                consumer.handleDlt(completedEvent(UUID.randomUUID(), UUID.randomUUID()),
+                        "topic-dlt", 0, 0L, null));
     }
 }

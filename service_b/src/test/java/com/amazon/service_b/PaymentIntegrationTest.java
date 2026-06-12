@@ -3,12 +3,15 @@ package com.amazon.service_b;
 import com.amazon.avro.OrderCreatedEvent;
 import com.amazon.avro.PaymentCompletedEvent;
 import com.amazon.service_b.payment.domain.Payment;
+import com.amazon.service_b.payment.infrastructure.persistence.JpaDeadLetterEventRepository;
 import com.amazon.service_b.payment.infrastructure.persistence.JpaOutboxEventRepository;
 import com.amazon.service_b.payment.infrastructure.persistence.JpaPaymentRepository;
+import com.amazon.service_b.payment.infrastructure.persistence.entity.DeadLetterEventEntity;
 import com.amazon.service_b.payment.infrastructure.persistence.entity.PaymentEntity;
 import io.confluent.kafka.serializers.KafkaAvroDeserializer;
 import io.confluent.kafka.serializers.KafkaAvroSerializer;
 import io.confluent.kafka.serializers.subject.TopicRecordNameStrategy;
+import org.apache.avro.specific.SpecificRecord;
 import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
@@ -40,13 +43,17 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
 
-@SpringBootTest(properties = "spring.kafka.bootstrap-servers=${spring.embedded.kafka.brokers}")
+@SpringBootTest(properties = {
+        "spring.kafka.bootstrap-servers=${spring.embedded.kafka.brokers}",
+        "spring.kafka.consumer.auto-offset-reset=earliest"
+})
 @EmbeddedKafka(
         partitions = 1,
         topics = {
                 "amazon.env.order-management.orders.created.pub",
                 "amazon.env.order-management.payments.completed.pub",
-                "amazon.env.order-management.payments.failed.pub"
+                "amazon.env.order-management.payments.failed.pub",
+                "amazon.env.order-management.orders.created.pub-dlt"
         }
 )
 class PaymentIntegrationTest {
@@ -74,10 +81,14 @@ class PaymentIntegrationTest {
     private JpaOutboxEventRepository jpaOutboxEventRepository;
 
     @Autowired
+    private JpaDeadLetterEventRepository jpaDeadLetterEventRepository;
+
+    @Autowired
     private EmbeddedKafkaBroker embeddedKafkaBroker;
 
     @BeforeEach
     void cleanUp() {
+        jpaDeadLetterEventRepository.deleteAll();
         jpaOutboxEventRepository.deleteAll();
         jpaPaymentRepository.deleteAll();
     }
@@ -131,26 +142,46 @@ class PaymentIntegrationTest {
         });
     }
 
+    @Test
+    void orderCreatedEvent_savesToDeadLetterWhenRoutedToDlt() {
+        OrderCreatedEvent event = OrderCreatedEvent.newBuilder()
+                .setOrderId(UUID.randomUUID().toString())
+                .setPaymentId(UUID.randomUUID().toString())
+                .setAmount("100.00")
+                .build();
+
+        publishToDltTopic(event, "amazon.env.order-management.orders.created.pub-dlt");
+
+        await().atMost(Duration.ofSeconds(10)).untilAsserted(() -> {
+            List<DeadLetterEventEntity> dltEvents = jpaDeadLetterEventRepository.findAll();
+            assertThat(dltEvents).hasSize(1);
+            assertThat(dltEvents.get(0).getEventType()).isEqualTo(OrderCreatedEvent.class.getName());
+            assertThat(dltEvents.get(0).getTopic()).isEqualTo("amazon.env.order-management.orders.created.pub-dlt");
+            assertThat(dltEvents.get(0).getPayload()).isNotEmpty();
+        });
+    }
+
     private void publishOrderCreatedEvent(UUID orderId, UUID paymentId, BigDecimal amount) {
-        Map<String, Object> producerProps = KafkaTestUtils.producerProps(embeddedKafkaBroker);
-        producerProps.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class);
-        producerProps.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, KafkaAvroSerializer.class);
-        producerProps.put("schema.registry.url", MOCK_SCHEMA_REGISTRY);
-        producerProps.put("value.subject.name.strategy", TopicRecordNameStrategy.class.getName());
-
-        KafkaTemplate<String, OrderCreatedEvent> template = new KafkaTemplate<>(
-                new DefaultKafkaProducerFactory<>(producerProps));
-
         OrderCreatedEvent event = OrderCreatedEvent.newBuilder()
                 .setOrderId(orderId.toString())
                 .setAmount(amount.toPlainString())
                 .setPaymentId(paymentId.toString())
                 .build();
 
-        ProducerRecord<String, OrderCreatedEvent> record = new ProducerRecord<>(
-                "amazon.env.order-management.orders.created.pub", orderId.toString(), event);
+        publishToDltTopic(event, "amazon.env.order-management.orders.created.pub");
+    }
 
-        template.send(record);
+    private void publishToDltTopic(SpecificRecord event, String topic) {
+        Map<String, Object> producerProps = KafkaTestUtils.producerProps(embeddedKafkaBroker);
+        producerProps.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class);
+        producerProps.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, KafkaAvroSerializer.class);
+        producerProps.put("schema.registry.url", MOCK_SCHEMA_REGISTRY);
+        producerProps.put("value.subject.name.strategy", TopicRecordNameStrategy.class.getName());
+
+        KafkaTemplate<String, SpecificRecord> template = new KafkaTemplate<>(
+                new DefaultKafkaProducerFactory<>(producerProps));
+
+        template.send(new ProducerRecord<>(topic, UUID.randomUUID().toString(), event));
         template.flush();
     }
 }

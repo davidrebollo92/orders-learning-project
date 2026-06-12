@@ -1,17 +1,27 @@
 package com.amazon.service_a;
 
 import com.amazon.avro.OrderCreatedEvent;
+import com.amazon.avro.PaymentCompletedEvent;
+import com.amazon.avro.PaymentFailedEvent;
 import com.amazon.service_a.order.domain.Payment;
 import com.amazon.service_a.order.infrastructure.http.dto.CreateOrderRequest;
+import com.amazon.service_a.order.infrastructure.persistence.JpaDeadLetterEventRepository;
 import com.amazon.service_a.order.infrastructure.persistence.JpaOrderRepository;
 import com.amazon.service_a.order.infrastructure.persistence.JpaOutboxEventRepository;
+import com.amazon.service_a.order.infrastructure.persistence.entity.DeadLetterEventEntity;
 import com.amazon.service_a.order.infrastructure.persistence.entity.OrderEntity;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.confluent.kafka.serializers.KafkaAvroDeserializer;
+import io.confluent.kafka.serializers.KafkaAvroSerializer;
+import io.confluent.kafka.serializers.subject.TopicRecordNameStrategy;
+import org.apache.avro.specific.SpecificRecord;
 import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
+import org.apache.kafka.clients.producer.ProducerConfig;
+import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.serialization.StringDeserializer;
+import org.apache.kafka.common.serialization.StringSerializer;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -19,6 +29,8 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.http.MediaType;
 import org.springframework.kafka.core.DefaultKafkaConsumerFactory;
+import org.springframework.kafka.core.DefaultKafkaProducerFactory;
+import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.kafka.test.EmbeddedKafkaBroker;
 import org.springframework.kafka.test.context.EmbeddedKafka;
 import org.springframework.kafka.test.utils.KafkaTestUtils;
@@ -34,6 +46,7 @@ import java.util.Map;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.awaitility.Awaitility.await;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -41,7 +54,10 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 @SpringBootTest(
         webEnvironment = SpringBootTest.WebEnvironment.MOCK,
-        properties = "spring.kafka.bootstrap-servers=${spring.embedded.kafka.brokers}"
+        properties = {
+                "spring.kafka.bootstrap-servers=${spring.embedded.kafka.brokers}",
+                "spring.kafka.consumer.auto-offset-reset=earliest"
+        }
 )
 @AutoConfigureMockMvc
 @EmbeddedKafka(
@@ -49,7 +65,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
         topics = {
                 "amazon.env.order-management.orders.created.pub",
                 "amazon.env.order-management.payments.completed.pub",
-                "amazon.env.order-management.payments.failed.pub"
+                "amazon.env.order-management.payments.failed.pub",
+                "amazon.env.order-management.payments.completed.pub-dlt",
+                "amazon.env.order-management.payments.failed.pub-dlt"
         }
 )
 class OrderIntegrationTest {
@@ -82,10 +100,14 @@ class OrderIntegrationTest {
     private JpaOutboxEventRepository jpaOutboxEventRepository;
 
     @Autowired
+    private JpaDeadLetterEventRepository jpaDeadLetterEventRepository;
+
+    @Autowired
     private EmbeddedKafkaBroker embeddedKafkaBroker;
 
     @BeforeEach
     void cleanUp() {
+        jpaDeadLetterEventRepository.deleteAll();
         jpaOutboxEventRepository.deleteAll();
         jpaOrderRepository.deleteAll();
     }
@@ -175,5 +197,55 @@ class OrderIntegrationTest {
         mockMvc.perform(get("/orders"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.length()").value(2));
+    }
+
+    @Test
+    void paymentCompletedEvent_savesToDeadLetterWhenRoutedToDlt() {
+        PaymentCompletedEvent event = PaymentCompletedEvent.newBuilder()
+                .setOrderId(UUID.randomUUID().toString())
+                .setPaymentId(UUID.randomUUID().toString())
+                .build();
+
+        publishToDltTopic(event, "amazon.env.order-management.payments.completed.pub-dlt");
+
+        await().atMost(Duration.ofSeconds(10)).untilAsserted(() -> {
+            List<DeadLetterEventEntity> dltEvents = jpaDeadLetterEventRepository.findAll();
+            assertThat(dltEvents).hasSize(1);
+            assertThat(dltEvents.get(0).getEventType()).isEqualTo(PaymentCompletedEvent.class.getName());
+            assertThat(dltEvents.get(0).getTopic()).isEqualTo("amazon.env.order-management.payments.completed.pub-dlt");
+            assertThat(dltEvents.get(0).getPayload()).isNotEmpty();
+        });
+    }
+
+    @Test
+    void paymentFailedEvent_savesToDeadLetterWhenRoutedToDlt() {
+        PaymentFailedEvent event = PaymentFailedEvent.newBuilder()
+                .setOrderId(UUID.randomUUID().toString())
+                .setPaymentId(UUID.randomUUID().toString())
+                .build();
+
+        publishToDltTopic(event, "amazon.env.order-management.payments.failed.pub-dlt");
+
+        await().atMost(Duration.ofSeconds(10)).untilAsserted(() -> {
+            List<DeadLetterEventEntity> dltEvents = jpaDeadLetterEventRepository.findAll();
+            assertThat(dltEvents).hasSize(1);
+            assertThat(dltEvents.get(0).getEventType()).isEqualTo(PaymentFailedEvent.class.getName());
+            assertThat(dltEvents.get(0).getTopic()).isEqualTo("amazon.env.order-management.payments.failed.pub-dlt");
+            assertThat(dltEvents.get(0).getPayload()).isNotEmpty();
+        });
+    }
+
+    private void publishToDltTopic(SpecificRecord event, String topic) {
+        Map<String, Object> producerProps = KafkaTestUtils.producerProps(embeddedKafkaBroker);
+        producerProps.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class);
+        producerProps.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, KafkaAvroSerializer.class);
+        producerProps.put("schema.registry.url", MOCK_SCHEMA_REGISTRY);
+        producerProps.put("value.subject.name.strategy", TopicRecordNameStrategy.class.getName());
+
+        KafkaTemplate<String, SpecificRecord> template = new KafkaTemplate<>(
+                new DefaultKafkaProducerFactory<>(producerProps));
+
+        template.send(new ProducerRecord<>(topic, UUID.randomUUID().toString(), event));
+        template.flush();
     }
 }
