@@ -16,6 +16,7 @@ Proyecto Maven multi-módulo con tres módulos (Java 21 / Spring Boot 4.0.6):
 - **Saga con compensación** — flujo distribuido coordinado por eventos; si el pago falla, service_b publica `PaymentFailedEvent` y service_a cancela la orden (`CANCELLED`)
 - **Avro + Schema Registry** — los eventos Kafka se serializan con Apache Avro; los schemas (`.avsc`) son la fuente de verdad y se registran en Confluent Schema Registry; un topic por tipo de evento
 - **Idempotencia** — los consumidores detectan y descartan eventos duplicados
+- **Dead Letter Topic con persistencia** — tras agotar los reintentos, el evento se persiste en `dead_letter_events` (topic, payload Avro binario, tipo de evento, partición y offset originales) para su inspección y reprocesado manual
 - **Migraciones con Liquibase** — el esquema de base de datos se gestiona mediante changelogs versionados; Hibernate solo valida, nunca altera
 
 ## Flujo
@@ -35,7 +36,7 @@ Proyecto Maven multi-módulo con tres módulos (Java 21 / Spring Boot 4.0.6):
 
 ## Gestión de errores Kafka
 
-Los consumidores usan `@RetryableTopic` (3 reintentos, backoff exponencial). Las excepciones de negocio conocidas se absorben sin reintentar (duplicados → `warn`, no encontrado → `error`, fondos insuficientes → `warn`). Tras agotar reintentos, el mensaje va al Dead Letter Topic.
+Los consumidores usan `@RetryableTopic` (3 reintentos, backoff exponencial). Las excepciones de negocio conocidas se absorben sin reintentar (duplicados → `warn`, no encontrado → `error`, fondos insuficientes → `warn`). Tras agotar los reintentos, el mensaje va al Dead Letter Topic y el `@DltHandler` persiste el evento fallido en la tabla `dead_letter_events` (topic, payload Avro, tipo de evento, partición y offset originales) para su inspección y reprocesado manual.
 
 ## Requisitos
 

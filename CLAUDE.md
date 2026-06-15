@@ -218,6 +218,11 @@ Within each attempt, known domain exceptions are caught and not retried:
 - Insufficient funds (`InsufficientFundsException`) → `log.warn`, discard (service_b).
 - Any other exception propagates so `@RetryableTopic` retries it up to 3 times, then routes to DLT.
 
+The `@DltHandler` persists the failed event to the `dead_letter_events` table so it can be inspected and reprocessed manually:
+- `DeadLetterEventEntity` — fields: `id`, `topic` (DLT topic name), `payload` (Avro binary, `BYTEA`), `eventType` (fully qualified Avro class name), `exceptionMessage`, `originalPartition`, `originalOffset`, `occurredAt`.
+- `JpaDeadLetterEventRepository` — Spring Data JPA repository for `dead_letter_events`.
+- If the DB write itself fails, the handler catches the exception and logs it — the Kafka offset is still committed so the message is not re-consumed.
+
 ### Code style
 
 - **Blank lines between logical steps** — separate distinct steps within a method with a blank line.
@@ -290,12 +295,14 @@ DomainException (service_boot)
   - `orders` → `OrderEntity` (service_a, order context) — columns: `id`, `name`, `amount`, `state`, `payment_id`
   - `payments` → `OrderPaymentEntity` (service_a, order context, cascade from `orders`) — columns: `id`, `state`
   - `outbox_events` → `OutboxEventEntity` (service_a, order context)
+  - `dead_letter_events` → `DeadLetterEventEntity` (service_a, order context)
   - `payments` → `PaymentEntity` (service_b, payment context; different database from service_a) — columns: `id`, `order_id`, `state`, `transaction_id`
   - `transactions` → `TransactionEntity` (service_b, payment context, cascade from `payments`)
   - `outbox_events` → `OutboxEventEntity` (service_b, payment context)
+  - `dead_letter_events` → `DeadLetterEventEntity` (service_b, payment context)
   - All primary keys are `UUID` — no `@GeneratedValue`.
 - **Messaging**: Kafka at `localhost:9092` (host) / `kafka:19092` (Docker). Topics configured via `app.kafka.topics` in `KafkaTopicsConfig` (`@ConfigurationProperties` + `@Component`). Topics are auto-created on startup.
 - **Schema Registry**: Confluent Schema Registry at `localhost:8081` (host) / `schema-registry:8081` (Docker). URL configured via `spring.kafka.properties.schema.registry.url`. Used by `KafkaAvroSerializer` (producer) and `KafkaAvroDeserializer` (consumer) to register and resolve Avro schemas. In tests, `mock://test` replaces the real registry.
 - **DB Schema**: managed by **Liquibase** (`ddl-auto: validate` — Hibernate only validates, never alters). Changelogs live in `src/main/resources/db/changelog/`. The master file `db.changelog-master.yaml` includes changesets from `changes/`. To add a schema change, create a new `NNN_description.sql` file and add an `include` entry to the master — never modify existing changesets.
-  - service_a changelogs: `001_init_schema.sql` (orders, payments, outbox_events), `002_add_state_to_orders.sql` (adds `state VARCHAR(10)` to `orders`), `003_add_event_type_to_outbox.sql` (adds `event_type VARCHAR(255)` to `outbox_events`), `004_alter_outbox_payload_to_bytea.sql` (converts `payload` from `TEXT` to `BYTEA`)
-  - service_b changelogs: `001_init_schema.sql` (transactions, payments, outbox_events), `002_add_event_type_to_outbox.sql` (adds `event_type VARCHAR(255)` to `outbox_events`), `003_alter_outbox_payload_to_bytea.sql` (converts `payload` from `TEXT` to `BYTEA`)
+  - service_a changelogs: `001_init_schema.sql` (orders, payments, outbox_events), `002_add_state_to_orders.sql` (adds `state VARCHAR(10)` to `orders`), `003_add_event_type_to_outbox.sql` (adds `event_type VARCHAR(255)` to `outbox_events`), `004_alter_outbox_payload_to_bytea.sql` (converts `payload` from `TEXT` to `BYTEA`), `005_create_dead_letter_events.sql` (creates `dead_letter_events` table)
+  - service_b changelogs: `001_init_schema.sql` (transactions, payments, outbox_events), `002_add_event_type_to_outbox.sql` (adds `event_type VARCHAR(255)` to `outbox_events`), `003_alter_outbox_payload_to_bytea.sql` (converts `payload` from `TEXT` to `BYTEA`), `004_create_dead_letter_events.sql` (creates `dead_letter_events` table)
