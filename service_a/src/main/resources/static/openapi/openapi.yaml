@@ -1,0 +1,139 @@
+openapi: 3.0.3
+info:
+  title: Order Management API
+  description: API for creating and querying orders.
+  version: "1.0.0"
+paths:
+  /orders:
+    post:
+      operationId: createOrder
+      tags: [Orders]
+      summary: Create a new order
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateOrderRequest'
+      responses:
+        '201':
+          description: Order created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrderResponse'
+        '400':
+          description: Invalid order data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorDto'
+        '500':
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorDto'
+    get:
+      operationId: getOrders
+      tags: [Orders]
+      summary: List all orders
+      responses:
+        '200':
+          description: Orders retrieved
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/OrderResponse'
+        '500':
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorDto'
+  /orders/{id}:
+    get:
+      operationId: getOrder
+      tags: [Orders]
+      summary: Get an order by id
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Order found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrderResponse'
+        '404':
+          description: Order not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorDto'
+        '500':
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorDto'
+components:
+  schemas:
+    CreateOrderRequest:
+      type: object
+      required:
+        - name
+        - amount
+      properties:
+        name:
+          type: string
+          minLength: 1
+        amount:
+          type: number
+    PaymentResponse:
+      type: object
+      required:
+        - id
+        - state
+      properties:
+        id:
+          type: string
+          format: uuid
+        state:
+          type: string
+          enum: [PENDING, PAID, FAILED]
+    OrderResponse:
+      type: object
+      required:
+        - id
+        - name
+        - amount
+        - state
+        - payment
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        amount:
+          type: number
+        state:
+          type: string
+          enum: [CREATED, PAID, CANCELLED]
+        payment:
+          $ref: '#/components/schemas/PaymentResponse'
+    ErrorDto:
+      type: object
+      properties:
+        message:
+          type: string
+        code:
+          type: string

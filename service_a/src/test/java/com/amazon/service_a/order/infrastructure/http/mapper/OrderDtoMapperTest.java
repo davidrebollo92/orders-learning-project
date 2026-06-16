@@ -33,11 +33,11 @@ class OrderDtoMapperTest {
 
         OrderResponse response = mapper.toResponse(order);
 
-        assertThat(response.id()).isEqualTo(order.id());
-        assertThat(response.name()).isEqualTo("laptop");
-        assertThat(response.amount()).isEqualByComparingTo(new BigDecimal("10.00"));
-        assertThat(response.payment().id()).isEqualTo(order.payment().id());
-        assertThat(response.payment().state()).isEqualTo(Payment.State.PENDING.name());
+        assertThat(response.getId()).isEqualTo(order.id());
+        assertThat(response.getName()).isEqualTo("laptop");
+        assertThat(response.getAmount()).isEqualByComparingTo(new BigDecimal("10.00"));
+        assertThat(response.getPayment().getId()).isEqualTo(order.payment().id());
+        assertThat(response.getPayment().getState().name()).isEqualTo(Payment.State.PENDING.name());
     }
 
     @Test
@@ -46,6 +46,6 @@ class OrderDtoMapperTest {
 
         OrderResponse response = mapper.toResponse(order);
 
-        assertThat(response.payment().state()).isEqualTo(Payment.State.PAID.name());
+        assertThat(response.getPayment().getState().name()).isEqualTo(Payment.State.PAID.name());
     }
 }

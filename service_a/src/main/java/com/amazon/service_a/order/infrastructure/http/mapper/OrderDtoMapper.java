@@ -11,19 +11,19 @@ import org.springframework.stereotype.Component;
 public class OrderDtoMapper {
 
     public Order toDomain(CreateOrderRequest request) {
-        return Order.create(request.name(), new Money(request.amount()));
+        return Order.create(request.getName(), new Money(request.getAmount()));
     }
 
     public OrderResponse toResponse(Order order) {
         PaymentResponse paymentResponse = new PaymentResponse(
                 order.payment().id(),
-                order.payment().state().name());
+                PaymentResponse.StateEnum.valueOf(order.payment().state().name()));
 
         return new OrderResponse(
                 order.id(),
                 order.name(),
                 order.money().amount(),
-                order.state().name(),
+                OrderResponse.StateEnum.valueOf(order.state().name()),
                 paymentResponse
         );
     }

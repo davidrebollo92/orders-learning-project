@@ -4,6 +4,9 @@ app:
       orders-created: amazon.env.order-management.orders.created.pub
       payments-completed: amazon.env.order-management.payments.completed.pub
       payments-failed: amazon.env.order-management.payments.failed.pub
+springdoc:
+  swagger-ui:
+    url: /openapi/openapi.yaml
 spring:
   application:
     name: service_a
