@@ -194,6 +194,17 @@ Both services use the **Transactional Outbox Pattern** to guarantee event publis
 - `OutboxScheduler` — `@Scheduled(fixedDelay = 1000)`. Queries `findByPublishedAtIsNull()`, deserializes the Avro binary payload using `SpecificData.get().getSchema(clazz)` + `SpecificDatumReader` + `BinaryDecoder`, sends each event via `KafkaTemplate<String, Object>` (serialized as Avro binary by `KafkaAvroSerializer`), then sets `publishedAt`. Runs in both services independently.
 - `KafkaOutboxConfig` — defines the `@Bean("outboxKafkaTemplate")` with `StringSerializer` for key and `KafkaAvroSerializer` for value. The `eventType` column stores the fully qualified Avro class name (e.g. `com.amazon.avro.OrderCreatedEvent`) so the scheduler knows which schema to use for deserialization.
 
+### AsyncAPI specs
+
+Each service documents its messaging architecture as a static YAML file served by Spring Boot. This is **documentation**, not contract-first: the specs were written after the code and do not drive code generation (unlike OpenAPI in service_a). The `.avsc` Avro files are the real message contract and generate Java classes; AsyncAPI describes the higher-level channel and operation structure.
+
+- `service_a/src/main/resources/static/asyncapi/asyncapi.yaml` — available at `GET /asyncapi/index.html` (UI) and `GET /asyncapi/asyncapi.yaml` (raw)
+- `service_b/src/main/resources/static/asyncapi/asyncapi.yaml` — available at `GET /asyncapi/index.html` (UI) and `GET /asyncapi/asyncapi.yaml` (raw); service_b exposes port 8082 in Docker for this purpose
+
+Spec version: AsyncAPI 3.0.0. Message payloads use JSON Schema — `schemaFormat` (Avro inline) is not supported by the `@asyncapi/react-component` renderer. Operations use `action: send` (publish) and `action: receive` (consume).
+
+When updating Avro schemas (`.avsc` files), the corresponding `payload` blocks in these specs must be updated manually to stay in sync.
+
 ### Avro schemas and Kafka topics
 
 Events are defined as **Avro schemas** (`src/main/avro/*.avsc`). The `avro-maven-plugin` generates Java classes in `target/generated-sources/avro/com/amazon/avro/` at `generate-sources` phase. Each service has its own copy of the schemas it uses (no cross-service imports). Schemas must be identical across services for Schema Registry compatibility.

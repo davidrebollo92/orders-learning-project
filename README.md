@@ -18,6 +18,8 @@ Proyecto Maven multi-módulo con tres módulos (Java 21 / Spring Boot 4.0.6):
 - **Idempotencia** — los consumidores detectan y descartan eventos duplicados
 - **Dead Letter Topic con persistencia** — tras agotar los reintentos, el evento se persiste en `dead_letter_events` (topic, payload Avro binario, tipo de evento, partición y offset originales) para su inspección y reprocesado manual
 - **Migraciones con Liquibase** — el esquema de base de datos se gestiona mediante changelogs versionados; Hibernate solo valida, nunca altera
+- **OpenAPI contract-first** — service_a expone su API REST a partir de un fichero `openapi.yaml`; el plugin `openapi-generator-maven-plugin` genera las interfaces Spring a partir de la spec en tiempo de compilación
+- **AsyncAPI documentation** — cada servicio documenta su arquitectura de mensajería en un fichero `asyncapi.yaml` (AsyncAPI 3.0.0); describe los canales Kafka, las operaciones (`send`/`receive`) y los schemas de los mensajes desde la perspectiva de cada servicio; se sirve como recurso estático junto con una UI visual
 
 ## Flujo
 
@@ -57,6 +59,26 @@ POST   /orders       — crear pedido        → 201
 GET    /orders       — listar pedidos      → 200
 GET    /orders/{id}  — obtener por id      → 200 / 404
 ```
+
+## Documentación de la API
+
+### OpenAPI — service_a
+
+| URL | Descripción |
+|-----|-------------|
+| `http://localhost:8080/swagger-ui.html` | Swagger UI (interfaz visual) |
+| `http://localhost:8080/openapi/openapi.yaml` | Spec OpenAPI 3.0 en crudo |
+
+### AsyncAPI
+
+| URL | Descripción |
+|-----|-------------|
+| `http://localhost:8080/asyncapi/index.html` | UI visual AsyncAPI — service_a |
+| `http://localhost:8080/asyncapi/asyncapi.yaml` | Spec AsyncAPI 3.0 en crudo — service_a |
+| `http://localhost:8082/asyncapi/index.html` | UI visual AsyncAPI — service_b |
+| `http://localhost:8082/asyncapi/asyncapi.yaml` | Spec AsyncAPI 3.0 en crudo — service_b |
+
+Cada spec AsyncAPI describe, desde la perspectiva del servicio, qué topics publica (`action: send`) y cuáles consume (`action: receive`), con los schemas Avro de cada mensaje y los bindings Kafka (topic name, consumer group).
 
 ## Tests
 

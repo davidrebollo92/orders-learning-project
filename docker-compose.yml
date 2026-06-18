@@ -89,6 +89,8 @@ services:
       context: .
       dockerfile: service_b/Dockerfile
     container_name: amazon-service-b
+    ports:
+      - "8082:8080"
     environment:
       SPRING_DATASOURCE_URL: jdbc:postgresql://amazon-postgres-service-b:5432/service_b_db
       SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:19092

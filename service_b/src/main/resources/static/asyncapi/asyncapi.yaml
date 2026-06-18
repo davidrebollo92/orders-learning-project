@@ -1,0 +1,137 @@
+asyncapi: 3.0.0
+
+info:
+  title: Service B — Payment Processing
+  version: 1.0.0
+  description: >
+    Processes payments triggered by order creation events. Publishes a
+    PaymentCompletedEvent on success or a PaymentFailedEvent on insufficient
+    funds.
+
+defaultContentType: application/octet-stream
+
+channels:
+  ordersCreated:
+    address: amazon.env.order-management.orders.created.pub
+    description: Order creation events produced by service_a.
+    messages:
+      OrderCreatedEvent:
+        $ref: '#/components/messages/OrderCreatedEvent'
+    bindings:
+      kafka:
+        topic: amazon.env.order-management.orders.created.pub
+
+  paymentsCompleted:
+    address: amazon.env.order-management.payments.completed.pub
+    description: Successful payment outcomes consumed by service_a.
+    messages:
+      PaymentCompletedEvent:
+        $ref: '#/components/messages/PaymentCompletedEvent'
+    bindings:
+      kafka:
+        topic: amazon.env.order-management.payments.completed.pub
+
+  paymentsFailed:
+    address: amazon.env.order-management.payments.failed.pub
+    description: Failed payment outcomes consumed by service_a.
+    messages:
+      PaymentFailedEvent:
+        $ref: '#/components/messages/PaymentFailedEvent'
+    bindings:
+      kafka:
+        topic: amazon.env.order-management.payments.failed.pub
+
+operations:
+  consumeOrderCreated:
+    action: receive
+    channel:
+      $ref: '#/channels/ordersCreated'
+    summary: Process a payment when a new order arrives.
+    description: >
+      Processed by PaymentCreator via SimulatedPaymentGateway. Orders with
+      amount ≤ 1000 are approved; above 1000 raises InsufficientFundsException.
+      Retried up to 3 times with exponential backoff (1 s × 2). Unrecoverable
+      failures are routed to the DLT and persisted in dead_letter_events.
+    bindings:
+      kafka:
+        groupId:
+          type: string
+          enum: [payment-processor]
+    messages:
+      - $ref: '#/channels/ordersCreated/messages/OrderCreatedEvent'
+
+  publishPaymentCompleted:
+    action: send
+    channel:
+      $ref: '#/channels/paymentsCompleted'
+    summary: Publish an event when a payment is approved.
+    description: >
+      Sent via the Transactional Outbox Pattern: the event is persisted in
+      outbox_events within the same transaction as the payment state change,
+      then forwarded to Kafka by OutboxScheduler every second.
+    messages:
+      - $ref: '#/channels/paymentsCompleted/messages/PaymentCompletedEvent'
+
+  publishPaymentFailed:
+    action: send
+    channel:
+      $ref: '#/channels/paymentsFailed'
+    summary: Publish an event when a payment is rejected.
+    description: >
+      Sent via the Transactional Outbox Pattern. Triggered when
+      SimulatedPaymentGateway raises InsufficientFundsException (amount > 1000).
+    messages:
+      - $ref: '#/channels/paymentsFailed/messages/PaymentFailedEvent'
+
+components:
+  messages:
+    OrderCreatedEvent:
+      name: OrderCreatedEvent
+      title: Order Created Event
+      summary: Published by service_a when a new order is placed.
+      contentType: application/json
+      payload:
+        type: object
+        required: [orderId, amount, paymentId]
+        properties:
+          orderId:
+            type: string
+            format: uuid
+          amount:
+            type: string
+            description: "Decimal amount as string (e.g. '99.99'). Avro type: string."
+          paymentId:
+            type: string
+            format: uuid
+
+    PaymentCompletedEvent:
+      name: PaymentCompletedEvent
+      title: Payment Completed Event
+      summary: Published when a payment is approved.
+      contentType: application/json
+      payload:
+        type: object
+        required: [paymentId, orderId]
+        properties:
+          paymentId:
+            type: string
+            format: uuid
+          orderId:
+            type: string
+            format: uuid
+
+    PaymentFailedEvent:
+      name: PaymentFailedEvent
+      title: Payment Failed Event
+      summary: Published when a payment is rejected (e.g. insufficient funds).
+      contentType: application/json
+      payload:
+        type: object
+        required: [paymentId, orderId]
+        properties:
+          paymentId:
+            type: string
+            format: uuid
+          orderId:
+            type: string
+            format: uuid
