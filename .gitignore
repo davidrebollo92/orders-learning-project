@@ -33,6 +33,7 @@
 
 ### Claude Code ###
 .claude/settings.local.json
+CLAUDE.md
 
 ### Environment / Secrets ###
 .env
