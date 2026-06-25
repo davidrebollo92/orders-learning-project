@@ -1,0 +1,35 @@
+app:
+  kafka:
+    topics:
+      orders-created: amazon.env.order-management.orders.created.pub
+      payments-completed: amazon.env.order-management.payments.completed.pub
+      payments-failed: amazon.env.order-management.payments.failed.pub
+springdoc:
+  swagger-ui:
+    url: /openapi/openapi.yaml
+spring:
+  application:
+    name: order-service
+  datasource:
+    url: jdbc:postgresql://localhost:5432/order_service_db
+    username: postgres
+    password: postgres
+    driver-class-name: org.postgresql.Driver
+  kafka:
+    bootstrap-servers: localhost:9092
+    properties:
+      schema.registry.url: http://localhost:8081
+    consumer:
+      group-id: order-management
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: io.confluent.kafka.serializers.KafkaAvroDeserializer
+      properties:
+        specific.avro.reader: true
+  liquibase:
+    change-log: classpath:db/changelog/db.changelog-master.yaml
+  jpa:
+    hibernate:
+      ddl-auto: validate
+  web:
+    error:
+      include-stacktrace: never

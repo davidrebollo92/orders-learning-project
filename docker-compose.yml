@@ -1,32 +1,32 @@
 services:
-  postgres-service-a:
+  postgres-order-service:
     image: postgres
-    container_name: amazon-postgres-service-a
+    container_name: amazon-postgres-order-service
     environment:
       POSTGRES_PASSWORD: postgres
       POSTGRES_USER: postgres
-      POSTGRES_DB: service_a_db
+      POSTGRES_DB: order_service_db
     ports:
       - "5432:5432"
     volumes:
-      - postgres_service_a_data:/var/lib/postgresql
+      - postgres_order_service_data:/var/lib/postgresql
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 5s
       timeout: 5s
       retries: 5
 
-  postgres-service-b:
+  postgres-payment-service:
     image: postgres
-    container_name: amazon-postgres-service-b
+    container_name: amazon-postgres-payment-service
     environment:
       POSTGRES_PASSWORD: postgres
       POSTGRES_USER: postgres
-      POSTGRES_DB: service_b_db
+      POSTGRES_DB: payment_service_db
     ports:
       - "5433:5432"
     volumes:
-      - postgres_service_b_data:/var/lib/postgresql
+      - postgres_payment_service_data:/var/lib/postgresql
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 5s
@@ -64,19 +64,19 @@ services:
       kafka:
         condition: service_started
 
-  service_a:
+  order-service:
     build:
       context: .
-      dockerfile: service_a/Dockerfile
-    container_name: amazon-service-a
+      dockerfile: order-service/Dockerfile
+    container_name: amazon-order-service
     ports:
       - "8080:8080"
     environment:
-      SPRING_DATASOURCE_URL: jdbc:postgresql://amazon-postgres-service-a:5432/service_a_db
+      SPRING_DATASOURCE_URL: jdbc:postgresql://amazon-postgres-order-service:5432/order_service_db
       SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:19092
       SPRING_KAFKA_PROPERTIES_SCHEMA_REGISTRY_URL: http://schema-registry:8081
     depends_on:
-      postgres-service-a:
+      postgres-order-service:
         condition: service_healthy
       kafka:
         condition: service_started
@@ -84,19 +84,19 @@ services:
         condition: service_started
     restart: on-failure
 
-  service_b:
+  payment-service:
     build:
       context: .
-      dockerfile: service_b/Dockerfile
-    container_name: amazon-service-b
+      dockerfile: payment-service/Dockerfile
+    container_name: amazon-payment-service
     ports:
       - "8082:8080"
     environment:
-      SPRING_DATASOURCE_URL: jdbc:postgresql://amazon-postgres-service-b:5432/service_b_db
+      SPRING_DATASOURCE_URL: jdbc:postgresql://amazon-postgres-payment-service:5432/payment_service_db
       SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:19092
       SPRING_KAFKA_PROPERTIES_SCHEMA_REGISTRY_URL: http://schema-registry:8081
     depends_on:
-      postgres-service-b:
+      postgres-payment-service:
         condition: service_healthy
       kafka:
         condition: service_started
@@ -105,5 +105,5 @@ services:
     restart: on-failure
 
 volumes:
-  postgres_service_a_data:
-  postgres_service_b_data:
+  postgres_order_service_data:
+  postgres_payment_service_data:
