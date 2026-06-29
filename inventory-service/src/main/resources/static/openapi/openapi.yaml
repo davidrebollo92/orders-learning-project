@@ -1,0 +1,133 @@
+openapi: 3.0.3
+info:
+  title: Inventory Management API
+  description: API for managing products and stock.
+  version: "1.0.0"
+paths:
+  /products:
+    post:
+      operationId: createProduct
+      tags: [Products]
+      summary: Create a new product
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateProductRequest'
+      responses:
+        '201':
+          description: Product created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProductResponse'
+        '400':
+          description: Invalid product data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorDto'
+        '500':
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorDto'
+    get:
+      operationId: getProducts
+      tags: [Products]
+      summary: List all products
+      responses:
+        '200':
+          description: Products retrieved
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ProductResponse'
+        '500':
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorDto'
+  /products/{id}:
+    get:
+      operationId: getProduct
+      tags: [Products]
+      summary: Get a product by id
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Product found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProductResponse'
+        '404':
+          description: Product not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorDto'
+        '500':
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorDto'
+components:
+  schemas:
+    CreateProductRequest:
+      type: object
+      required:
+        - name
+        - price
+        - stock
+      properties:
+        name:
+          type: string
+          minLength: 1
+        price:
+          type: number
+        stock:
+          type: integer
+          minimum: 1
+    ProductResponse:
+      type: object
+      required:
+        - id
+        - name
+        - price
+        - totalStock
+        - reservedStock
+        - availableStock
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        price:
+          type: number
+        totalStock:
+          type: integer
+        reservedStock:
+          type: integer
+        availableStock:
+          type: integer
+    ErrorDto:
+      type: object
+      properties:
+        message:
+          type: string
+        code:
+          type: string
