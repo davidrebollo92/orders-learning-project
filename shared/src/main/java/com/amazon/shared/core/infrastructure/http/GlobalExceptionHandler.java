@@ -1,4 +1,4 @@
-package com.amazon.order_service.shared.infrastructure;
+package com.amazon.shared.core.infrastructure.http;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -17,19 +17,19 @@ public class GlobalExceptionHandler {
     private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
-    public ResponseEntity<ErrorDto> handleValidation(MethodArgumentNotValidException ex) {
+    public ResponseEntity<com.amazon.shared.core.infrastructure.http.ErrorDto> handleValidation(MethodArgumentNotValidException ex) {
         String message = ex.getBindingResult().getFieldErrors().stream()
                 .map(FieldError::getDefaultMessage)
                 .collect(Collectors.joining(", "));
 
         return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                .body(new ErrorDto(message, "VALIDATION_ERROR"));
+                .body(new com.amazon.shared.core.infrastructure.http.ErrorDto(message, "VALIDATION_ERROR"));
     }
 
     @ExceptionHandler(Exception.class)
-    public ResponseEntity<ErrorDto> handleUnexpected(Exception ex) {
+    public ResponseEntity<com.amazon.shared.core.infrastructure.http.ErrorDto> handleUnexpected(Exception ex) {
         log.error("Unexpected error", ex);
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(new ErrorDto("An unexpected error occurred", "INTERNAL_ERROR"));
+                .body(new com.amazon.shared.core.infrastructure.http.ErrorDto("An unexpected error occurred", "INTERNAL_ERROR"));
     }
 }

@@ -22,6 +22,7 @@ public class OrderPostgreSqlRepository implements OrderRepository {
     @Override
     public Order save(Order order) {
         OrderEntity entity = orderEntityMapper.toEntity(order);
+
         OrderEntity created = jpaOrderRepository.save(entity);
 
         return orderEntityMapper.toDomain(created);

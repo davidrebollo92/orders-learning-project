@@ -1,3 +1,3 @@
-package com.amazon.order_service.shared.infrastructure;
+package com.amazon.shared.core.infrastructure.http;
 
 public record ErrorDto(String message, String code) {}

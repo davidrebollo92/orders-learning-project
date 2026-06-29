@@ -29,8 +29,8 @@ public class PaymentCompleter {
             throw new PaymentNotFoundException(paymentId);
         }
 
-        Order orderCompleted = optionalOrder.get().completePayment();
-        orderRepository.updatePayment(orderCompleted);
+        final Order orderCompleted = optionalOrder.get().completePayment();
 
+        orderRepository.updatePayment(orderCompleted);
     }
 }

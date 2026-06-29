@@ -38,14 +38,6 @@
             <artifactId>jackson-databind</artifactId>
         </dependency>
         <dependency>
-            <groupId>io.confluent</groupId>
-            <artifactId>kafka-avro-serializer</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>org.apache.avro</groupId>
-            <artifactId>avro</artifactId>
-        </dependency>
-        <dependency>
             <groupId>org.springdoc</groupId>
             <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
             <version>2.8.9</version>
@@ -109,14 +101,6 @@
                 <artifactId>spring-boot-maven-plugin</artifactId>
             </plugin>
             <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-compiler-plugin</artifactId>
-            </plugin>
-            <plugin>
-                <groupId>org.apache.avro</groupId>
-                <artifactId>avro-maven-plugin</artifactId>
-            </plugin>
-            <plugin>
                 <groupId>org.openapitools</groupId>
                 <artifactId>openapi-generator-maven-plugin</artifactId>
                 <version>7.11.0</version>
@@ -131,10 +115,10 @@
                             <apiPackage>com.amazon.order_service.order.infrastructure.http.api</apiPackage>
                             <modelPackage>com.amazon.order_service.order.infrastructure.http.dto</modelPackage>
                             <importMappings>
-                                <importMapping>ErrorDto=com.amazon.order_service.shared.infrastructure.ErrorDto</importMapping>
+                                <importMapping>ErrorDto=com.amazon.shared.core.infrastructure.http.ErrorDto</importMapping>
                             </importMappings>
                             <schemaMappings>
-                                <schemaMapping>ErrorDto=com.amazon.order_service.shared.infrastructure.ErrorDto</schemaMapping>
+                                <schemaMapping>ErrorDto=com.amazon.shared.core.infrastructure.http.ErrorDto</schemaMapping>
                             </schemaMappings>
                             <configOptions>
                                 <interfaceOnly>true</interfaceOnly>

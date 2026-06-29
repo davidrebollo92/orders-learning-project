@@ -1,9 +1,0 @@
-{
-  "type": "record",
-  "name": "PaymentFailedEvent",
-  "namespace": "com.amazon.avro",
-  "fields": [
-    {"name": "paymentId", "type": "string"},
-    {"name": "orderId",   "type": "string"}
-  ]
-}

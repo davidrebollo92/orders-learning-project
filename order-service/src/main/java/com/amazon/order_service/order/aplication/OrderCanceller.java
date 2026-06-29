@@ -29,7 +29,8 @@ public class OrderCanceller {
             throw new PaymentNotFoundException(paymentId);
         }
 
-        Order cancelledOrder = optionalOrder.get().cancel();
+        final Order cancelledOrder = optionalOrder.get().cancel();
+
         orderRepository.updatePayment(cancelledOrder);
     }
 }

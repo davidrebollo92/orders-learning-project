@@ -24,26 +24,26 @@ public class OrderController implements OrdersApi {
 
     @Override
     public ResponseEntity<OrderResponse> createOrder(CreateOrderRequest createOrderRequest) {
-        OrderResponse order = orderDtoMapper.toResponse(
+        OrderResponse orderResponse = orderDtoMapper.toResponse(
                 orderCreator.create(orderDtoMapper.toDomain(createOrderRequest))
         );
 
-        return ResponseEntity.status(HttpStatus.CREATED).body(order);
+        return ResponseEntity.status(HttpStatus.CREATED).body(orderResponse);
     }
 
     @Override
     public ResponseEntity<List<OrderResponse>> getOrders() {
-        List<OrderResponse> orders = orderFinder.findAll().stream()
+        List<OrderResponse> ordersResponse = orderFinder.findAll().stream()
                 .map(orderDtoMapper::toResponse)
                 .toList();
 
-        return ResponseEntity.ok(orders);
+        return ResponseEntity.ok(ordersResponse);
     }
 
     @Override
     public ResponseEntity<OrderResponse> getOrder(UUID id) {
-        OrderResponse order = orderDtoMapper.toResponse(orderFinder.findById(id));
+        OrderResponse orderResponse = orderDtoMapper.toResponse(orderFinder.findById(id));
 
-        return ResponseEntity.ok(order);
+        return ResponseEntity.ok(orderResponse);
     }
 }
