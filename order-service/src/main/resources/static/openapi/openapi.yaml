@@ -89,12 +89,16 @@ components:
     CreateOrderRequest:
       type: object
       required:
-        - name
+        - productId
+        - quantity
         - amount
       properties:
-        name:
+        productId:
           type: string
-          minLength: 1
+          format: uuid
+        quantity:
+          type: integer
+          minimum: 1
         amount:
           type: number
     PaymentResponse:
@@ -113,7 +117,8 @@ components:
       type: object
       required:
         - id
-        - name
+        - productId
+        - quantity
         - amount
         - state
         - payment
@@ -121,8 +126,11 @@ components:
         id:
           type: string
           format: uuid
-        name:
+        productId:
           type: string
+          format: uuid
+        quantity:
+          type: integer
         amount:
           type: number
         state:

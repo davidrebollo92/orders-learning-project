@@ -1,14 +1,14 @@
-package com.amazon.order_service.order.infrastructure.messaging;
+package com.amazon.inventory_service.reservation.infrastructure.messaging;
 
 import com.amazon.avro.PaymentCompletedEvent;
 import com.amazon.avro.PaymentFailedEvent;
-import com.amazon.order_service.order.aplication.OrderCanceller;
-import com.amazon.order_service.order.aplication.PaymentCompleter;
-import com.amazon.order_service.order.domain.exception.OrderNotFoundException;
-import com.amazon.order_service.order.domain.exception.PaymentAlreadyPaidException;
-import com.amazon.order_service.order.domain.exception.PaymentNotFoundException;
-import com.amazon.order_service.order.infrastructure.persistence.JpaDeadLetterEventRepository;
-import com.amazon.order_service.order.infrastructure.persistence.entity.DeadLetterEventEntity;
+import com.amazon.inventory_service.product.domain.exception.ProductNotFoundException;
+import com.amazon.inventory_service.reservation.aplication.StockConfirmer;
+import com.amazon.inventory_service.reservation.aplication.StockReleaser;
+import com.amazon.inventory_service.reservation.domain.exception.InvalidReservationStateException;
+import com.amazon.inventory_service.reservation.domain.exception.ReservationNotFoundException;
+import com.amazon.inventory_service.reservation.infrastructure.persistence.JpaDeadLetterEventRepository;
+import com.amazon.inventory_service.reservation.infrastructure.persistence.entity.DeadLetterEventEntity;
 import com.amazon.shared.core.infrastructure.messaging.AvroUtils;
 import lombok.RequiredArgsConstructor;
 import org.apache.avro.specific.SpecificRecord;
@@ -32,8 +32,8 @@ public class PaymentKafkaEventConsumer {
 
     private static final Logger log = LoggerFactory.getLogger(PaymentKafkaEventConsumer.class);
 
-    private final PaymentCompleter paymentCompleter;
-    private final OrderCanceller orderCanceller;
+    private final StockConfirmer stockConfirmer;
+    private final StockReleaser stockReleaser;
     private final JpaDeadLetterEventRepository jpaDeadLetterEventRepository;
 
     @RetryableTopic(
@@ -41,16 +41,16 @@ public class PaymentKafkaEventConsumer {
             backOff = @BackOff(delay = 1000, multiplier = 2.0),
             topicSuffixingStrategy = TopicSuffixingStrategy.SUFFIX_WITH_INDEX_VALUE
     )
-    @KafkaListener(topics = "#{@kafkaTopicsConfig.paymentsCompleted}", groupId = "order-payment-updater")
+    @KafkaListener(topics = "#{@kafkaTopicsConfig.paymentsCompleted}", groupId = "inventory-stock-updater")
     public void consumeCompleted(PaymentCompletedEvent event) {
         try {
-            paymentCompleter.complete(UUID.fromString(event.getOrderId()), UUID.fromString(event.getPaymentId()));
-        } catch (PaymentNotFoundException ex) {
-            log.error("PaymentCompletedEvent received for unknown payment: {}", ex.getMessage());
-        } catch (OrderNotFoundException ex) {
-            log.error("PaymentCompletedEvent received for unknown order: {}", ex.getMessage());
-        } catch (PaymentAlreadyPaidException ex) {
-            log.warn("Duplicate PaymentCompletedEvent received: {}", ex.getMessage());
+            stockConfirmer.confirm(UUID.fromString(event.getOrderId()));
+        } catch (ReservationNotFoundException ex) {
+            log.error("PaymentCompletedEvent received for unknown reservation: {}", ex.getMessage());
+        } catch (ProductNotFoundException ex) {
+            log.error("PaymentCompletedEvent received for unknown product: {}", ex.getMessage());
+        } catch (InvalidReservationStateException ex) {
+            log.error("PaymentCompletedEvent received for reservation in invalid state: {}", ex.getMessage());
         }
     }
 
@@ -59,14 +59,16 @@ public class PaymentKafkaEventConsumer {
             backOff = @BackOff(delay = 1000, multiplier = 2.0),
             topicSuffixingStrategy = TopicSuffixingStrategy.SUFFIX_WITH_INDEX_VALUE
     )
-    @KafkaListener(topics = "#{@kafkaTopicsConfig.paymentsFailed}", groupId = "order-payment-updater")
+    @KafkaListener(topics = "#{@kafkaTopicsConfig.paymentsFailed}", groupId = "inventory-stock-updater")
     public void consumeFailed(PaymentFailedEvent event) {
         try {
-            orderCanceller.cancel(UUID.fromString(event.getOrderId()), UUID.fromString(event.getPaymentId()));
-        } catch (PaymentNotFoundException ex) {
-            log.error("PaymentFailedEvent received for unknown payment: {}", ex.getMessage());
-        } catch (OrderNotFoundException ex) {
-            log.error("PaymentFailedEvent received for unknown order: {}", ex.getMessage());
+            stockReleaser.release(UUID.fromString(event.getOrderId()));
+        } catch (ReservationNotFoundException ex) {
+            log.error("PaymentFailedEvent received for unknown reservation: {}", ex.getMessage());
+        } catch (ProductNotFoundException ex) {
+            log.error("PaymentFailedEvent received for unknown product: {}", ex.getMessage());
+        } catch (InvalidReservationStateException ex) {
+            log.error("PaymentFailedEvent received for reservation in invalid state: {}", ex.getMessage());
         }
     }
 
@@ -99,5 +101,4 @@ public class PaymentKafkaEventConsumer {
             log.error("Failed to persist DLT event to database: topic={}", topic, e);
         }
     }
-
 }

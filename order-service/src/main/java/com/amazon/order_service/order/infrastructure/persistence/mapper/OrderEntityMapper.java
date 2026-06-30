@@ -17,7 +17,8 @@ public class OrderEntityMapper {
         OrderEntity entity = new OrderEntity();
 
         entity.setId(order.id());
-        entity.setName(order.name());
+        entity.setProductId(order.productId());
+        entity.setQuantity(order.quantity());
         entity.setAmount(order.money().amount());
         entity.setState(order.state());
         entity.setPayment(paymentEntityMapper.toEntity(order.payment()));
@@ -29,7 +30,8 @@ public class OrderEntityMapper {
 
         return new Order(
                 entity.getId(),
-                entity.getName(),
+                entity.getProductId(),
+                entity.getQuantity(),
                 new Money(entity.getAmount()),
                 entity.getState(),
                 paymentEntityMapper.toDomain(entity.getPayment())

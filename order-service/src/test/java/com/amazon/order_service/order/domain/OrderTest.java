@@ -6,21 +6,25 @@ import com.amazon.shared.core.domain.vo.Money;
 import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
+import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class OrderTest {
 
-    @Test
-    void create_returnsOrderWithGivenNameAndAmount() {
-        Money money = new Money(new BigDecimal("10.00"));
+    private static final UUID PRODUCT_ID = UUID.randomUUID();
+    private static final int QUANTITY = 2;
+    private static final Money MONEY = new Money(new BigDecimal("10.00"));
 
-        Order order = Order.create("laptop", money);
+    @Test
+    void create_returnsOrderWithProductIdQuantityAndAmount() {
+        Order order = Order.create(PRODUCT_ID, QUANTITY, MONEY);
 
         assertThat(order.id()).isNotNull();
-        assertThat(order.name()).isEqualTo("laptop");
-        assertThat(order.money()).isEqualTo(money);
+        assertThat(order.productId()).isEqualTo(PRODUCT_ID);
+        assertThat(order.quantity()).isEqualTo(QUANTITY);
+        assertThat(order.money()).isEqualTo(MONEY);
         assertThat(order.state()).isEqualTo(Order.State.CREATED);
         assertThat(order.payment()).isNull();
     }
@@ -29,13 +33,13 @@ class OrderTest {
     void create_throwsInvalidOrderAmountException_whenAmountIsBelowMinimum() {
         Money money = new Money(BigDecimal.ZERO);
 
-        assertThatThrownBy(() -> Order.create("laptop", money))
+        assertThatThrownBy(() -> Order.create(PRODUCT_ID, QUANTITY, money))
                 .isInstanceOf(InvalidOrderAmountException.class);
     }
 
     @Test
     void addPayment_returnsOrderWithPendingPayment() {
-        Order order = Order.create("laptop", new Money(new BigDecimal("10.00")));
+        Order order = Order.create(PRODUCT_ID, QUANTITY, MONEY);
 
         Order withPayment = order.addPayment();
 
@@ -46,7 +50,7 @@ class OrderTest {
 
     @Test
     void completePayment_returnsOrderWithPaidPayment() {
-        Order order = Order.create("laptop", new Money(new BigDecimal("10.00"))).addPayment();
+        Order order = Order.create(PRODUCT_ID, QUANTITY, MONEY).addPayment();
 
         Order completed = order.completePayment();
 
@@ -56,7 +60,7 @@ class OrderTest {
 
     @Test
     void completePayment_throwsPaymentAlreadyPaidException_whenPaymentAlreadyPaid() {
-        Order order = Order.create("laptop", new Money(new BigDecimal("10.00"))).addPayment().completePayment();
+        Order order = Order.create(PRODUCT_ID, QUANTITY, MONEY).addPayment().completePayment();
 
         assertThatThrownBy(order::completePayment)
                 .isInstanceOf(PaymentAlreadyPaidException.class);
@@ -64,7 +68,7 @@ class OrderTest {
 
     @Test
     void cancel_returnsOrderWithCancelledStateAndFailedPayment() {
-        Order order = Order.create("laptop", new Money(new BigDecimal("10.00"))).addPayment();
+        Order order = Order.create(PRODUCT_ID, QUANTITY, MONEY).addPayment();
 
         Order cancelled = order.cancel();
 
@@ -75,7 +79,7 @@ class OrderTest {
 
     @Test
     void cancel_isIdempotent_whenPaymentAlreadyFailed() {
-        Order order = Order.create("laptop", new Money(new BigDecimal("10.00"))).addPayment().cancel();
+        Order order = Order.create(PRODUCT_ID, QUANTITY, MONEY).addPayment().cancel();
 
         Order cancelledAgain = order.cancel();
 

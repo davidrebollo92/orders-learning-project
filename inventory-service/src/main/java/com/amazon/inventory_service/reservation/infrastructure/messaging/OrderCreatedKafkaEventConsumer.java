@@ -1,12 +1,13 @@
-package com.amazon.payment_service.payment.infrastructure.messaging;
+package com.amazon.inventory_service.reservation.infrastructure.messaging;
 
 import com.amazon.avro.OrderCreatedEvent;
-import com.amazon.payment_service.payment.aplication.PaymentCreator;
-import com.amazon.payment_service.payment.domain.Payment;
-import com.amazon.payment_service.payment.domain.exception.PaymentAlreadyPaidException;
-import com.amazon.payment_service.payment.infrastructure.persistence.JpaDeadLetterEventRepository;
-import com.amazon.payment_service.payment.infrastructure.persistence.entity.DeadLetterEventEntity;
-import com.amazon.shared.core.domain.vo.Money;
+import com.amazon.inventory_service.product.domain.exception.InsufficientStockException;
+import com.amazon.inventory_service.product.domain.exception.ProductNotFoundException;
+import com.amazon.inventory_service.reservation.aplication.StockReserver;
+import com.amazon.inventory_service.reservation.domain.Reservation;
+import com.amazon.inventory_service.reservation.domain.exception.ReservationAlreadyExistsException;
+import com.amazon.inventory_service.reservation.infrastructure.persistence.JpaDeadLetterEventRepository;
+import com.amazon.inventory_service.reservation.infrastructure.persistence.entity.DeadLetterEventEntity;
 import com.amazon.shared.core.infrastructure.messaging.AvroUtils;
 import lombok.RequiredArgsConstructor;
 import org.apache.avro.specific.SpecificRecord;
@@ -21,7 +22,6 @@ import org.springframework.kafka.support.KafkaHeaders;
 import org.springframework.messaging.handler.annotation.Header;
 import org.springframework.stereotype.Component;
 
-import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.UUID;
 
@@ -31,7 +31,7 @@ public class OrderCreatedKafkaEventConsumer {
 
     private static final Logger log = LoggerFactory.getLogger(OrderCreatedKafkaEventConsumer.class);
 
-    private final PaymentCreator paymentCreator;
+    private final StockReserver stockReserver;
     private final JpaDeadLetterEventRepository jpaDeadLetterEventRepository;
 
     @RetryableTopic(
@@ -39,14 +39,20 @@ public class OrderCreatedKafkaEventConsumer {
             backOff = @BackOff(delay = 1000, multiplier = 2.0),
             topicSuffixingStrategy = TopicSuffixingStrategy.SUFFIX_WITH_INDEX_VALUE
     )
-    @KafkaListener(topics = "#{@kafkaTopicsConfig.ordersCreated}", groupId = "payment-processor")
+    @KafkaListener(topics = "#{@kafkaTopicsConfig.ordersCreated}", groupId = "inventory-stock-reserver")
     public void consume(OrderCreatedEvent event) {
-        try {
-            Payment payment = Payment.create(UUID.fromString(event.getPaymentId()), UUID.fromString(event.getOrderId()), new Money(new BigDecimal(event.getAmount())));
-
-            paymentCreator.create(payment);
-        } catch (PaymentAlreadyPaidException ex) {
+        try{
+            stockReserver.reserve(Reservation.create(
+                    UUID.fromString(event.getOrderId()),
+                    UUID.fromString(event.getProductId()),
+                    event.getQuantity()
+            ));
+        } catch (ReservationAlreadyExistsException ex) {
             log.warn("Duplicate OrderCreatedEvent received: {}", ex.getMessage());
+        } catch (ProductNotFoundException ex) {
+            log.error("OrderCreatedEvent received for unknown product: {}", ex.getMessage());
+        } catch (InsufficientStockException ex) {
+            log.warn("Insufficient stock for order: {}", ex.getMessage());
         }
     }
 
@@ -79,5 +85,4 @@ public class OrderCreatedKafkaEventConsumer {
             log.error("Failed to persist DLT event to database: topic={}", topic, e);
         }
     }
-
 }

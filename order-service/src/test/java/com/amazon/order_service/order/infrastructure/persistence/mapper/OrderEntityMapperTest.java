@@ -17,14 +17,18 @@ class OrderEntityMapperTest {
     private final OrderPaymentEntityMapper paymentMapper = new OrderPaymentEntityMapper();
     private final OrderEntityMapper mapper = new OrderEntityMapper(paymentMapper);
 
+    private static final UUID PRODUCT_ID = UUID.randomUUID();
+    private static final int QUANTITY = 2;
+
     @Test
     void toEntity_mapsAllFields() {
-        Order order = Order.create("laptop", new Money(new BigDecimal("10.00"))).addPayment();
+        Order order = Order.create(PRODUCT_ID, QUANTITY, new Money(new BigDecimal("10.00"))).addPayment();
 
         OrderEntity entity = mapper.toEntity(order);
 
         assertThat(entity.getId()).isEqualTo(order.id());
-        assertThat(entity.getName()).isEqualTo("laptop");
+        assertThat(entity.getProductId()).isEqualTo(PRODUCT_ID);
+        assertThat(entity.getQuantity()).isEqualTo(QUANTITY);
         assertThat(entity.getAmount()).isEqualByComparingTo(new BigDecimal("10.00"));
         assertThat(entity.getPayment().getId()).isEqualTo(order.payment().id());
         assertThat(entity.getPayment().getState()).isEqualTo(Payment.State.PENDING);
@@ -41,14 +45,16 @@ class OrderEntityMapperTest {
 
         OrderEntity entity = new OrderEntity();
         entity.setId(orderId);
-        entity.setName("laptop");
+        entity.setProductId(PRODUCT_ID);
+        entity.setQuantity(QUANTITY);
         entity.setAmount(new BigDecimal("10.00"));
         entity.setPayment(paymentEntity);
 
         Order order = mapper.toDomain(entity);
 
         assertThat(order.id()).isEqualTo(orderId);
-        assertThat(order.name()).isEqualTo("laptop");
+        assertThat(order.productId()).isEqualTo(PRODUCT_ID);
+        assertThat(order.quantity()).isEqualTo(QUANTITY);
         assertThat(order.money()).isEqualTo(new Money(new BigDecimal("10.00")));
         assertThat(order.payment().id()).isEqualTo(paymentId);
         assertThat(order.payment().state()).isEqualTo(Payment.State.PAID);

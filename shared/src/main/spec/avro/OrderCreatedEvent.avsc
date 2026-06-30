@@ -3,8 +3,10 @@
   "name": "OrderCreatedEvent",
   "namespace": "com.amazon.avro",
   "fields": [
-    {"name": "orderId",   "type": "string"},
-    {"name": "amount",    "type": "string"},
-    {"name": "paymentId", "type": "string"}
+    {"name": "orderId",    "type": "string"},
+    {"name": "productId",  "type": "string"},
+    {"name": "quantity",   "type": "int"},
+    {"name": "amount",     "type": "string"},
+    {"name": "paymentId",  "type": "string"}
   ]
 }

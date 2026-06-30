@@ -104,6 +104,44 @@ services:
         condition: service_started
     restart: on-failure
 
+  postgres-inventory-service:
+    image: postgres
+    container_name: amazon-postgres-inventory-service
+    environment:
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_USER: postgres
+      POSTGRES_DB: inventory_service_db
+    ports:
+      - "5434:5432"
+    volumes:
+      - postgres_inventory_service_data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  inventory-service:
+    build:
+      context: .
+      dockerfile: inventory-service/Dockerfile
+    container_name: amazon-inventory-service
+    ports:
+      - "8083:8080"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://amazon-postgres-inventory-service:5432/inventory_service_db
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:19092
+      SPRING_KAFKA_PROPERTIES_SCHEMA_REGISTRY_URL: http://schema-registry:8081
+    depends_on:
+      postgres-inventory-service:
+        condition: service_healthy
+      kafka:
+        condition: service_started
+      schema-registry:
+        condition: service_started
+    restart: on-failure
+
 volumes:
   postgres_order_service_data:
   postgres_payment_service_data:
+  postgres_inventory_service_data:

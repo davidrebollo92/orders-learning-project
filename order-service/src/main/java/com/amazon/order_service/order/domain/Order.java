@@ -8,7 +8,7 @@ import lombok.Builder;
 import java.util.UUID;
 
 @Builder(access = AccessLevel.PRIVATE, setterPrefix = "with", toBuilder = true)
-public record Order(UUID id, String name, Money money, State state, Payment payment) {
+public record Order(UUID id, UUID productId, int quantity, Money money, State state, Payment payment) {
 
     public enum State {
         CREATED,
@@ -20,8 +20,8 @@ public record Order(UUID id, String name, Money money, State state, Payment paym
         if (money.isBelowMinimum()) throw new InvalidOrderAmountException();
     }
 
-    public static Order create(String name, Money money) {
-        return new Order(UUID.randomUUID(), name, money, State.CREATED, null);
+    public static Order create(UUID productId, int quantity, Money money) {
+        return new Order(UUID.randomUUID(), productId, quantity, money, State.CREATED, null);
     }
 
     public Order addPayment() {

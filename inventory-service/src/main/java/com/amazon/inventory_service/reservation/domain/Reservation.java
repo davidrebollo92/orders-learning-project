@@ -1,5 +1,6 @@
 package com.amazon.inventory_service.reservation.domain;
 
+import com.amazon.inventory_service.reservation.domain.exception.InvalidReservationStateException;
 import lombok.AccessLevel;
 import lombok.Builder;
 
@@ -19,13 +20,13 @@ public record Reservation(UUID id, UUID orderId, UUID productId, int quantity, S
     }
 
     public Reservation confirm() {
-        //TODO: Check status
+        if (state != State.PENDING) throw new InvalidReservationStateException(id);
 
         return toBuilder().withState(State.CONFIRMED).build();
     }
 
     public Reservation release() {
-        //TODO: Check status
+        if (state != State.PENDING) throw new InvalidReservationStateException(id);
 
         return toBuilder().withState(State.RELEASED).build();
     }

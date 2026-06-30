@@ -2,10 +2,7 @@ package com.amazon.payment_service.payment.infrastructure.messaging;
 
 import com.amazon.payment_service.payment.infrastructure.persistence.JpaOutboxEventRepository;
 import com.amazon.payment_service.payment.infrastructure.persistence.entity.OutboxEventEntity;
-import org.apache.avro.io.BinaryDecoder;
-import org.apache.avro.io.DecoderFactory;
-import org.apache.avro.specific.SpecificData;
-import org.apache.avro.specific.SpecificDatumReader;
+import com.amazon.shared.core.infrastructure.messaging.AvroUtils;
 import org.apache.avro.specific.SpecificRecord;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -39,7 +36,7 @@ public class OutboxScheduler {
 
         for (OutboxEventEntity outboxEvent : pending) {
             try {
-                SpecificRecord payload = fromAvroBytes(outboxEvent.getPayload(), outboxEvent.getEventType());
+                SpecificRecord payload = AvroUtils.fromBytes(outboxEvent.getPayload(), outboxEvent.getEventType());
 
                 kafkaTemplate.send(outboxEvent.getTopic(), outboxEvent.getAggregateId().toString(), payload);
 
@@ -52,14 +49,4 @@ public class OutboxScheduler {
         }
     }
 
-    @SuppressWarnings("unchecked")
-    private SpecificRecord fromAvroBytes(byte[] bytes, String eventType) throws Exception {
-        Class<? extends SpecificRecord> clazz = (Class<? extends SpecificRecord>) Class.forName(eventType);
-
-        var schema = SpecificData.get().getSchema(clazz);
-        var reader = new SpecificDatumReader<SpecificRecord>(schema);
-        BinaryDecoder decoder = DecoderFactory.get().binaryDecoder(bytes, null);
-
-        return reader.read(null, decoder);
-    }
 }

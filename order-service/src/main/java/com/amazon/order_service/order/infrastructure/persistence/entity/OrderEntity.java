@@ -18,7 +18,9 @@ public class OrderEntity {
     @Id
     private UUID id;
 
-    private String name;
+    private UUID productId;
+
+    private int quantity;
 
     private BigDecimal amount;
 
