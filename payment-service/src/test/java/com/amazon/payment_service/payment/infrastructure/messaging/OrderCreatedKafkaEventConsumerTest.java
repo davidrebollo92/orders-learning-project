@@ -35,6 +35,8 @@ class OrderCreatedKafkaEventConsumerTest {
     private OrderCreatedEvent event(UUID orderId, UUID paymentId) {
         return OrderCreatedEvent.newBuilder()
                 .setOrderId(orderId.toString())
+                .setProductId(UUID.randomUUID().toString())
+                .setQuantity(1)
                 .setAmount("50.00")
                 .setPaymentId(paymentId.toString())
                 .build();

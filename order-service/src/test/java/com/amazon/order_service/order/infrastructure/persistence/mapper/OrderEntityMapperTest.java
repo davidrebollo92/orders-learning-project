@@ -29,7 +29,7 @@ class OrderEntityMapperTest {
         assertThat(entity.getId()).isEqualTo(order.id());
         assertThat(entity.getProductId()).isEqualTo(PRODUCT_ID);
         assertThat(entity.getQuantity()).isEqualTo(QUANTITY);
-        assertThat(entity.getAmount()).isEqualByComparingTo(new BigDecimal("10.00"));
+        assertThat(entity.getAmount()).isEqualByComparingTo(new BigDecimal("20.00"));
         assertThat(entity.getPayment().getId()).isEqualTo(order.payment().id());
         assertThat(entity.getPayment().getState()).isEqualTo(Payment.State.PENDING);
     }

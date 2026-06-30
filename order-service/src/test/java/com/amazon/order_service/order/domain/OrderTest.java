@@ -24,7 +24,7 @@ class OrderTest {
         assertThat(order.id()).isNotNull();
         assertThat(order.productId()).isEqualTo(PRODUCT_ID);
         assertThat(order.quantity()).isEqualTo(QUANTITY);
-        assertThat(order.money()).isEqualTo(MONEY);
+        assertThat(order.money()).isEqualTo(new Money(new BigDecimal("20.00")));
         assertThat(order.state()).isEqualTo(Order.State.CREATED);
         assertThat(order.payment()).isNull();
     }

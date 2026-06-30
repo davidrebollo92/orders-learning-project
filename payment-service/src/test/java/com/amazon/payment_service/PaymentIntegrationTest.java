@@ -146,6 +146,8 @@ class PaymentIntegrationTest {
     void orderCreatedEvent_savesToDeadLetterWhenRoutedToDlt() {
         OrderCreatedEvent event = OrderCreatedEvent.newBuilder()
                 .setOrderId(UUID.randomUUID().toString())
+                .setProductId(UUID.randomUUID().toString())
+                .setQuantity(1)
                 .setPaymentId(UUID.randomUUID().toString())
                 .setAmount("100.00")
                 .build();
@@ -164,6 +166,8 @@ class PaymentIntegrationTest {
     private void publishOrderCreatedEvent(UUID orderId, UUID paymentId, BigDecimal amount) {
         OrderCreatedEvent event = OrderCreatedEvent.newBuilder()
                 .setOrderId(orderId.toString())
+                .setProductId(UUID.randomUUID().toString())
+                .setQuantity(1)
                 .setAmount(amount.toPlainString())
                 .setPaymentId(paymentId.toString())
                 .build();
