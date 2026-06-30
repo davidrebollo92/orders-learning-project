@@ -32,7 +32,7 @@ class PaymentCompleterTest {
 
     @Test
     void complete_updatesOrderPayment_whenOrderAndPaymentMatch() {
-        Order order = Order.create("laptop", new Money(new BigDecimal("10.00"))).addPayment();
+        Order order = Order.create(UUID.randomUUID(), 2, new Money(new BigDecimal("10.00"))).addPayment();
         when(orderRepository.findById(order.id())).thenReturn(Optional.of(order));
 
         paymentCompleter.complete(order.id(), order.payment().id());
@@ -51,7 +51,7 @@ class PaymentCompleterTest {
 
     @Test
     void complete_throwsPaymentNotFoundException_whenPaymentIdDoesNotMatch() {
-        Order order = Order.create("laptop", new Money(new BigDecimal("10.00"))).addPayment();
+        Order order = Order.create(UUID.randomUUID(), 2, new Money(new BigDecimal("10.00"))).addPayment();
         when(orderRepository.findById(order.id())).thenReturn(Optional.of(order));
 
         assertThatThrownBy(() -> paymentCompleter.complete(order.id(), UUID.randomUUID()))
@@ -60,7 +60,7 @@ class PaymentCompleterTest {
 
     @Test
     void complete_throwsPaymentAlreadyPaidException_whenPaymentAlreadyPaid() {
-        Order order = Order.create("laptop", new Money(new BigDecimal("10.00"))).addPayment().completePayment();
+        Order order = Order.create(UUID.randomUUID(), 2, new Money(new BigDecimal("10.00"))).addPayment().completePayment();
         when(orderRepository.findById(order.id())).thenReturn(Optional.of(order));
 
         assertThatThrownBy(() -> paymentCompleter.complete(order.id(), order.payment().id()))

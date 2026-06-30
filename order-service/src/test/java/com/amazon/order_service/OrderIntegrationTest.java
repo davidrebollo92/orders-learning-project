@@ -4,7 +4,10 @@ import com.amazon.avro.OrderCreatedEvent;
 import com.amazon.avro.PaymentCompletedEvent;
 import com.amazon.avro.PaymentFailedEvent;
 import com.amazon.order_service.order.domain.Payment;
+import com.amazon.order_service.order.domain.ProductData;
+import com.amazon.order_service.order.domain.ProductGateway;
 import com.amazon.order_service.order.infrastructure.http.dto.CreateOrderRequest;
+import com.amazon.shared.core.domain.vo.Money;
 import com.amazon.order_service.order.infrastructure.persistence.JpaDeadLetterEventRepository;
 import com.amazon.order_service.order.infrastructure.persistence.JpaOrderRepository;
 import com.amazon.order_service.order.infrastructure.persistence.JpaOutboxEventRepository;
@@ -26,6 +29,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.http.MediaType;
 import org.springframework.kafka.core.DefaultKafkaConsumerFactory;
@@ -47,6 +51,8 @@ import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -56,7 +62,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
         webEnvironment = SpringBootTest.WebEnvironment.MOCK,
         properties = {
                 "spring.kafka.bootstrap-servers=${spring.embedded.kafka.brokers}",
-                "spring.kafka.consumer.auto-offset-reset=earliest"
+                "spring.kafka.consumer.auto-offset-reset=earliest",
+                "app.inventory-service.base-url=http://localhost:8083"
         }
 )
 @AutoConfigureMockMvc
@@ -88,10 +95,16 @@ class OrderIntegrationTest {
         registry.add("spring.kafka.properties.schema.registry.url", () -> MOCK_SCHEMA_REGISTRY);
     }
 
+    private static final UUID PRODUCT_ID = UUID.fromString("a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11");
+    private static final Money PRODUCT_PRICE = new Money(new BigDecimal("10.00"));
+
     @Autowired
     private MockMvc mockMvc;
 
     private final ObjectMapper objectMapper = new ObjectMapper();
+
+    @MockitoBean
+    private ProductGateway productGateway;
 
     @Autowired
     private JpaOrderRepository jpaOrderRepository;
@@ -106,22 +119,23 @@ class OrderIntegrationTest {
     private EmbeddedKafkaBroker embeddedKafkaBroker;
 
     @BeforeEach
-    void cleanUp() {
+    void setUp() {
         jpaDeadLetterEventRepository.deleteAll();
         jpaOutboxEventRepository.deleteAll();
         jpaOrderRepository.deleteAll();
+        when(productGateway.findById(any())).thenReturn(new ProductData(PRODUCT_ID, PRODUCT_PRICE));
     }
 
     @Test
     void createOrder_persistsOrderWithPendingPayment() throws Exception {
-        CreateOrderRequest request = new CreateOrderRequest("laptop", new BigDecimal("10.00"));
+        CreateOrderRequest request = new CreateOrderRequest(PRODUCT_ID, 2);
 
         mockMvc.perform(post("/orders")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.name").value("laptop"))
-                .andExpect(jsonPath("$.amount").value(10.00))
+                .andExpect(jsonPath("$.productId").value(PRODUCT_ID.toString()))
+                .andExpect(jsonPath("$.quantity").value(2))
                 .andExpect(jsonPath("$.payment.state").value("PENDING"));
 
         List<OrderEntity> orders = jpaOrderRepository.findAll();
@@ -142,7 +156,7 @@ class OrderIntegrationTest {
         embeddedKafkaBroker.consumeFromAnEmbeddedTopic(
                 consumer, "amazon.env.order-management.orders.created.pub");
 
-        CreateOrderRequest request = new CreateOrderRequest("laptop", new BigDecimal("10.00"));
+        CreateOrderRequest request = new CreateOrderRequest(PRODUCT_ID, 2);
         mockMvc.perform(post("/orders")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
@@ -156,11 +170,13 @@ class OrderIntegrationTest {
         assertThat(event.getOrderId()).isNotNull();
         assertThat(event.getPaymentId()).isNotNull();
         assertThat(event.getAmount()).isNotNull();
+        assertThat(event.getProductId()).isEqualTo(PRODUCT_ID.toString());
+        assertThat(event.getQuantity()).isEqualTo(2);
     }
 
     @Test
     void getOrderById_returns200_whenOrderExists() throws Exception {
-        CreateOrderRequest request = new CreateOrderRequest("laptop", new BigDecimal("10.00"));
+        CreateOrderRequest request = new CreateOrderRequest(PRODUCT_ID, 2);
         String response = mockMvc.perform(post("/orders")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
@@ -172,7 +188,7 @@ class OrderIntegrationTest {
         mockMvc.perform(get("/orders/{id}", orderId))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(orderId))
-                .andExpect(jsonPath("$.name").value("laptop"));
+                .andExpect(jsonPath("$.productId").value(PRODUCT_ID.toString()));
     }
 
     @Test
@@ -184,8 +200,8 @@ class OrderIntegrationTest {
 
     @Test
     void getAll_returnsAllCreatedOrders() throws Exception {
-        CreateOrderRequest request1 = new CreateOrderRequest("laptop", new BigDecimal("10.00"));
-        CreateOrderRequest request2 = new CreateOrderRequest("phone", new BigDecimal("20.00"));
+        CreateOrderRequest request1 = new CreateOrderRequest(PRODUCT_ID, 1);
+        CreateOrderRequest request2 = new CreateOrderRequest(PRODUCT_ID, 2);
 
         mockMvc.perform(post("/orders").contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request1)))

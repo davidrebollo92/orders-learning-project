@@ -3,7 +3,6 @@ package com.amazon.order_service.order.infrastructure.http;
 import com.amazon.order_service.order.aplication.OrderCreator;
 import com.amazon.order_service.order.aplication.OrderFinder;
 import com.amazon.order_service.order.domain.Order;
-import com.amazon.order_service.order.domain.exception.InvalidOrderAmountException;
 import com.amazon.order_service.order.domain.exception.OrderNotFoundException;
 import com.amazon.order_service.order.infrastructure.http.dto.CreateOrderRequest;
 import com.amazon.order_service.order.infrastructure.http.dto.OrderResponse;
@@ -23,6 +22,7 @@ import java.util.List;
 import java.util.UUID;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -46,79 +46,52 @@ class OrderControllerTest {
     @MockitoBean
     private OrderDtoMapper orderDtoMapper;
 
+    private static final UUID PRODUCT_ID = UUID.randomUUID();
+    private static final UUID ORDER_ID = UUID.randomUUID();
+    private static final UUID PAYMENT_ID = UUID.randomUUID();
+
     @Test
     void create_returns201WithOrderResponse_whenRequestIsValid() throws Exception {
-        UUID orderId = UUID.randomUUID();
-        UUID paymentId = UUID.randomUUID();
-        CreateOrderRequest request = new CreateOrderRequest("laptop", new BigDecimal("10.00"));
-        Order order = Order.create("laptop", new Money(new BigDecimal("10.00")));
-        Order orderWithPayment = order.addPayment();
-        OrderResponse response = new OrderResponse(orderId, "laptop", new BigDecimal("10.00"),
-                OrderResponse.StateEnum.CREATED, new PaymentResponse(paymentId, PaymentResponse.StateEnum.PENDING));
+        CreateOrderRequest request = new CreateOrderRequest(PRODUCT_ID, 2);
+        Order orderWithPayment = Order.create(PRODUCT_ID, 2, new Money(new BigDecimal("20.00"))).addPayment();
+        OrderResponse response = new OrderResponse(ORDER_ID, PRODUCT_ID, 2, new BigDecimal("20.00"),
+                OrderResponse.StateEnum.CREATED, new PaymentResponse(PAYMENT_ID, PaymentResponse.StateEnum.PENDING));
 
-        when(orderDtoMapper.toDomain(any(CreateOrderRequest.class))).thenReturn(order);
-        when(orderCreator.create(any(Order.class))).thenReturn(orderWithPayment);
+        when(orderCreator.create(eq(PRODUCT_ID), eq(2))).thenReturn(orderWithPayment);
         when(orderDtoMapper.toResponse(any(Order.class))).thenReturn(response);
 
         mockMvc.perform(post("/orders")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.id").value(orderId.toString()))
-                .andExpect(jsonPath("$.name").value("laptop"))
-                .andExpect(jsonPath("$.amount").value(10.00))
+                .andExpect(jsonPath("$.id").value(ORDER_ID.toString()))
+                .andExpect(jsonPath("$.productId").value(PRODUCT_ID.toString()))
+                .andExpect(jsonPath("$.amount").value(20.00))
                 .andExpect(jsonPath("$.payment.state").value("PENDING"));
     }
 
     @Test
-    void create_returns400_whenNameIsBlank() throws Exception {
-        CreateOrderRequest request = new CreateOrderRequest("", new BigDecimal("10.00"));
-
+    void create_returns400_whenQuantityIsNull() throws Exception {
         mockMvc.perform(post("/orders")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(request)))
+                        .content("{\"productId\":\"" + PRODUCT_ID + "\",\"quantity\":null}"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value("VALIDATION_ERROR"));
-    }
-
-    @Test
-    void create_returns400_whenAmountIsNull() throws Exception {
-        mockMvc.perform(post("/orders")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"name\":\"laptop\",\"amount\":null}"))
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.code").value("VALIDATION_ERROR"));
-    }
-
-    @Test
-    void create_returns400_whenAmountIsBelowMinimum() throws Exception {
-        CreateOrderRequest request = new CreateOrderRequest("laptop", BigDecimal.ZERO);
-
-        when(orderDtoMapper.toDomain(any(CreateOrderRequest.class)))
-                .thenThrow(new InvalidOrderAmountException());
-
-        mockMvc.perform(post("/orders")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(request)))
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.code").value("INVALID_ORDER_AMOUNT"));
     }
 
     @Test
     void getAll_returns200WithOrderList() throws Exception {
-        UUID orderId = UUID.randomUUID();
-        UUID paymentId = UUID.randomUUID();
-        Order order = Order.create("laptop", new Money(new BigDecimal("10.00")));
-        OrderResponse response = new OrderResponse(orderId, "laptop", new BigDecimal("10.00"),
-                OrderResponse.StateEnum.CREATED, new PaymentResponse(paymentId, PaymentResponse.StateEnum.PENDING));
+        Order order = Order.create(PRODUCT_ID, 2, new Money(new BigDecimal("20.00")));
+        OrderResponse response = new OrderResponse(ORDER_ID, PRODUCT_ID, 2, new BigDecimal("20.00"),
+                OrderResponse.StateEnum.CREATED, new PaymentResponse(PAYMENT_ID, PaymentResponse.StateEnum.PENDING));
 
         when(orderFinder.findAll()).thenReturn(List.of(order));
         when(orderDtoMapper.toResponse(any(Order.class))).thenReturn(response);
 
         mockMvc.perform(get("/orders"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].id").value(orderId.toString()))
-                .andExpect(jsonPath("$[0].name").value("laptop"))
+                .andExpect(jsonPath("$[0].id").value(ORDER_ID.toString()))
+                .andExpect(jsonPath("$[0].productId").value(PRODUCT_ID.toString()))
                 .andExpect(jsonPath("$[0].payment.state").value("PENDING"));
     }
 
@@ -133,19 +106,17 @@ class OrderControllerTest {
 
     @Test
     void get_returns200WithOrderResponse_whenOrderFound() throws Exception {
-        UUID orderId = UUID.randomUUID();
-        UUID paymentId = UUID.randomUUID();
-        Order order = Order.create("laptop", new Money(new BigDecimal("10.00")));
-        OrderResponse response = new OrderResponse(orderId, "laptop", new BigDecimal("10.00"),
-                OrderResponse.StateEnum.CREATED, new PaymentResponse(paymentId, PaymentResponse.StateEnum.PENDING));
+        Order order = Order.create(PRODUCT_ID, 2, new Money(new BigDecimal("20.00")));
+        OrderResponse response = new OrderResponse(ORDER_ID, PRODUCT_ID, 2, new BigDecimal("20.00"),
+                OrderResponse.StateEnum.CREATED, new PaymentResponse(PAYMENT_ID, PaymentResponse.StateEnum.PENDING));
 
-        when(orderFinder.findById(orderId)).thenReturn(order);
+        when(orderFinder.findById(ORDER_ID)).thenReturn(order);
         when(orderDtoMapper.toResponse(any(Order.class))).thenReturn(response);
 
-        mockMvc.perform(get("/orders/{id}", orderId))
+        mockMvc.perform(get("/orders/{id}", ORDER_ID))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.id").value(orderId.toString()))
-                .andExpect(jsonPath("$.name").value("laptop"));
+                .andExpect(jsonPath("$.id").value(ORDER_ID.toString()))
+                .andExpect(jsonPath("$.productId").value(PRODUCT_ID.toString()));
     }
 
     @Test

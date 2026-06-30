@@ -18,11 +18,8 @@ public class InventoryServiceGateway implements ProductGateway {
 
     private final RestClient restClient;
 
-    public InventoryServiceGateway(
-            RestClient.Builder restClientBuilder,
-            @Value("${app.inventory-service.base-url}") String baseUrl
-    ) {
-        this.restClient = restClientBuilder
+    public InventoryServiceGateway(@Value("${app.inventory-service.base-url}") String baseUrl) {
+        this.restClient = RestClient.builder()
                 .baseUrl(baseUrl)
                 .build();
     }

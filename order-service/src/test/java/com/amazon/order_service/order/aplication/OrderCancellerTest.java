@@ -31,7 +31,7 @@ class OrderCancellerTest {
 
     @Test
     void cancel_updatesOrderToCancelled_whenOrderAndPaymentMatch() {
-        Order order = Order.create("laptop", new Money(new BigDecimal("10.00"))).addPayment();
+        Order order = Order.create(UUID.randomUUID(), 2, new Money(new BigDecimal("10.00"))).addPayment();
         when(orderRepository.findById(order.id())).thenReturn(Optional.of(order));
 
         orderCanceller.cancel(order.id(), order.payment().id());
@@ -50,7 +50,7 @@ class OrderCancellerTest {
 
     @Test
     void cancel_throwsPaymentNotFoundException_whenPaymentIdDoesNotMatch() {
-        Order order = Order.create("laptop", new Money(new BigDecimal("10.00"))).addPayment();
+        Order order = Order.create(UUID.randomUUID(), 2, new Money(new BigDecimal("10.00"))).addPayment();
         when(orderRepository.findById(order.id())).thenReturn(Optional.of(order));
 
         assertThatThrownBy(() -> orderCanceller.cancel(order.id(), UUID.randomUUID()))

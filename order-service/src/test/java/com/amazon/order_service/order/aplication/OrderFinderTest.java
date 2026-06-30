@@ -30,7 +30,7 @@ class OrderFinderTest {
 
     @Test
     void findAll_returnsAllOrders() {
-        Order order = Order.create("laptop", new Money(new BigDecimal("10.00")));
+        Order order = Order.create(UUID.randomUUID(), 2, new Money(new BigDecimal("10.00")));
         when(orderRepository.getAll()).thenReturn(List.of(order));
 
         List<Order> result = orderFinder.findAll();
@@ -40,7 +40,7 @@ class OrderFinderTest {
 
     @Test
     void findById_returnsOrder_whenFound() {
-        Order order = Order.create("laptop", new Money(new BigDecimal("10.00")));
+        Order order = Order.create(UUID.randomUUID(), 2, new Money(new BigDecimal("10.00")));
         when(orderRepository.findById(order.id())).thenReturn(Optional.of(order));
 
         Order result = orderFinder.findById(order.id());

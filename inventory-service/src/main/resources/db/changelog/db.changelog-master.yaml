@@ -3,3 +3,5 @@ databaseChangeLog:
       file: db/changelog/changes/001_init_schema.sql
   - include:
       file: db/changelog/changes/002_create_dead_letter_events.sql
+  - include:
+      file: db/changelog/changes/003_insert_test_data.sql

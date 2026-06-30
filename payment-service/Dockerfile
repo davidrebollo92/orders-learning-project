@@ -6,6 +6,7 @@ COPY pom.xml .
 COPY shared/pom.xml shared/pom.xml
 COPY shared/src shared/src
 COPY order-service/pom.xml order-service/pom.xml
+COPY inventory-service/pom.xml inventory-service/pom.xml
 COPY payment-service/pom.xml payment-service/pom.xml
 COPY payment-service/src payment-service/src
 RUN ./mvnw -pl shared,payment-service -am package -DskipTests
