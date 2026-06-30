@@ -7,7 +7,7 @@ paths:
   /orders:
     post:
       operationId: createOrder
-      tags: [Orders]
+      tags: [ Orders ]
       summary: Create a new order
       requestBody:
         required: true
@@ -36,7 +36,7 @@ paths:
                 $ref: '#/components/schemas/ErrorDto'
     get:
       operationId: getOrders
-      tags: [Orders]
+      tags: [ Orders ]
       summary: List all orders
       responses:
         '200':
@@ -56,7 +56,7 @@ paths:
   /orders/{id}:
     get:
       operationId: getOrder
-      tags: [Orders]
+      tags: [ Orders ]
       summary: Get an order by id
       parameters:
         - name: id
@@ -91,7 +91,6 @@ components:
       required:
         - productId
         - quantity
-        - amount
       properties:
         productId:
           type: string
@@ -99,8 +98,6 @@ components:
         quantity:
           type: integer
           minimum: 1
-        amount:
-          type: number
     PaymentResponse:
       type: object
       required:
@@ -112,7 +109,7 @@ components:
           format: uuid
         state:
           type: string
-          enum: [PENDING, PAID, FAILED]
+          enum: [ PENDING, PAID, FAILED ]
     OrderResponse:
       type: object
       required:
@@ -135,7 +132,7 @@ components:
           type: number
         state:
           type: string
-          enum: [CREATED, PAID, CANCELLED]
+          enum: [ CREATED, PAID, CANCELLED ]
         payment:
           $ref: '#/components/schemas/PaymentResponse'
     ErrorDto:

@@ -5,6 +5,7 @@ import com.amazon.shared.core.domain.vo.Money;
 import lombok.AccessLevel;
 import lombok.Builder;
 
+import java.math.BigDecimal;
 import java.util.UUID;
 
 @Builder(access = AccessLevel.PRIVATE, setterPrefix = "with", toBuilder = true)
@@ -20,7 +21,8 @@ public record Order(UUID id, UUID productId, int quantity, Money money, State st
         if (money.isBelowMinimum()) throw new InvalidOrderAmountException();
     }
 
-    public static Order create(UUID productId, int quantity, Money money) {
+    public static Order create(UUID productId, int quantity, Money price) {
+        Money money = new Money(price.amount().multiply(BigDecimal.valueOf(quantity)));
         return new Order(UUID.randomUUID(), productId, quantity, money, State.CREATED, null);
     }
 

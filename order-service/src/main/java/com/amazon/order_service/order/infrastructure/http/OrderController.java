@@ -25,7 +25,7 @@ public class OrderController implements OrdersApi {
     @Override
     public ResponseEntity<OrderResponse> createOrder(CreateOrderRequest createOrderRequest) {
         OrderResponse orderResponse = orderDtoMapper.toResponse(
-                orderCreator.create(orderDtoMapper.toDomain(createOrderRequest))
+                orderCreator.create(createOrderRequest.getProductId(), createOrderRequest.getQuantity())
         );
 
         return ResponseEntity.status(HttpStatus.CREATED).body(orderResponse);
