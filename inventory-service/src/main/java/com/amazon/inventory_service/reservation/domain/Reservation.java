@@ -4,10 +4,11 @@ import com.amazon.inventory_service.reservation.domain.exception.InvalidReservat
 import lombok.AccessLevel;
 import lombok.Builder;
 
+import java.time.Instant;
 import java.util.UUID;
 
 @Builder(access = AccessLevel.PRIVATE, setterPrefix = "with", toBuilder = true)
-public record Reservation(UUID id, UUID orderId, UUID productId, int quantity, State state) {
+public record Reservation(UUID id, UUID orderId, UUID productId, int quantity, State state, Instant createdAt) {
 
     public enum State {
         PENDING,
@@ -16,7 +17,7 @@ public record Reservation(UUID id, UUID orderId, UUID productId, int quantity, S
     }
 
     public static Reservation create(UUID orderId, UUID productId, int quantity) {
-        return new Reservation(UUID.randomUUID(), orderId, productId, quantity, State.PENDING);
+        return new Reservation(UUID.randomUUID(), orderId, productId, quantity, State.PENDING, Instant.now());
     }
 
     public Reservation confirm() {

@@ -16,6 +16,7 @@ public class ReservationEntityMapper {
         entity.setProductId(reservation.productId());
         entity.setQuantity(reservation.quantity());
         entity.setState(reservation.state());
+        entity.setCreatedAt(reservation.createdAt());
 
         return entity;
     }
@@ -27,7 +28,8 @@ public class ReservationEntityMapper {
                 entity.getOrderId(),
                 entity.getProductId(),
                 entity.getQuantity(),
-                entity.getState()
+                entity.getState(),
+                entity.getCreatedAt()
         );
     }
 }

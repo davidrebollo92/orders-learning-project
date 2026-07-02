@@ -135,6 +135,7 @@ services:
       SPRING_DATASOURCE_URL: jdbc:postgresql://amazon-postgres-inventory-service:5432/inventory_service_db
       SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:19092
       SPRING_KAFKA_PROPERTIES_SCHEMA_REGISTRY_URL: http://schema-registry:8081
+      APP_ORDER_SERVICE_BASE_URL: http://amazon-order-service:8080
     depends_on:
       postgres-inventory-service:
         condition: service_healthy

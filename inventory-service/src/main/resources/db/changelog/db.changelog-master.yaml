@@ -5,3 +5,7 @@ databaseChangeLog:
       file: db/changelog/changes/002_create_dead_letter_events.sql
   - include:
       file: db/changelog/changes/003_insert_test_data.sql
+  - include:
+      file: db/changelog/changes/004_add_unique_order_id_to_reservations.sql
+  - include:
+      file: db/changelog/changes/005_add_created_at_to_reservations.sql

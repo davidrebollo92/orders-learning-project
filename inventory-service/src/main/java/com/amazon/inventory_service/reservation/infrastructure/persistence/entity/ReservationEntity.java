@@ -5,6 +5,7 @@ import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
 
+import java.time.Instant;
 import java.util.UUID;
 
 @Entity
@@ -24,4 +25,6 @@ public class ReservationEntity {
 
     @Enumerated(EnumType.STRING)
     private Reservation.State state;
+
+    private Instant createdAt;
 }

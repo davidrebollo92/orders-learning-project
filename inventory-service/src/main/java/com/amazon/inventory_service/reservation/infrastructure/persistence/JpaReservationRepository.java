@@ -7,12 +7,16 @@ import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.time.Instant;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
 public interface JpaReservationRepository extends JpaRepository<ReservationEntity, UUID> {
 
     Optional<ReservationEntity> findByOrderId(UUID orderId);
+
+    List<ReservationEntity> findByStateAndCreatedAtBefore(Reservation.State state, Instant cutoff);
 
     @Modifying
     @Query("UPDATE ReservationEntity r SET r.state = :state WHERE r.id = :id")

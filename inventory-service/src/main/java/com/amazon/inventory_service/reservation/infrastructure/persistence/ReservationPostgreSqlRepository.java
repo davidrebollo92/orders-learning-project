@@ -7,6 +7,8 @@ import com.amazon.inventory_service.reservation.infrastructure.persistence.mappe
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
 
+import java.time.Instant;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -29,6 +31,14 @@ public class ReservationPostgreSqlRepository implements ReservationRepository {
     public Optional<Reservation> findByOrderId(UUID orderId) {
         return jpaReservationRepository.findByOrderId(orderId)
                 .map(reservationEntityMapper::toDomain);
+    }
+
+    @Override
+    public List<Reservation> findStalePending(Instant cutoff) {
+        return jpaReservationRepository.findByStateAndCreatedAtBefore(Reservation.State.PENDING, cutoff)
+                .stream()
+                .map(reservationEntityMapper::toDomain)
+                .toList();
     }
 
     @Override
