@@ -1,5 +1,6 @@
 package com.amazon.inventory_service.product.infrastructure.http;
 
+import com.amazon.inventory_service.product.domain.exception.InsufficientStockException;
 import com.amazon.inventory_service.product.domain.exception.ProductDomainException;
 import com.amazon.inventory_service.product.domain.exception.ProductNotFoundException;
 import org.springframework.http.HttpStatus;
@@ -14,6 +15,12 @@ public class ProductExceptionHandler {
     @ExceptionHandler(ProductNotFoundException.class)
     public ResponseEntity<ErrorDto> handleNotFoundException(ProductNotFoundException ex) {
         return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(new ErrorDto(ex.getMessage(), ex.getCode()));
+    }
+
+    @ExceptionHandler(InsufficientStockException.class)
+    public ResponseEntity<ErrorDto> handleInsufficientStock(InsufficientStockException ex) {
+        return ResponseEntity.status(HttpStatus.CONFLICT)
                 .body(new ErrorDto(ex.getMessage(), ex.getCode()));
     }
 
