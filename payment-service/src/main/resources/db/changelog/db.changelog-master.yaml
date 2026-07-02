@@ -7,3 +7,5 @@ databaseChangeLog:
       file: db/changelog/changes/003_alter_outbox_payload_to_bytea.sql
   - include:
       file: db/changelog/changes/004_create_dead_letter_events.sql
+  - include:
+      file: db/changelog/changes/005_add_unique_order_id_to_payments.sql
