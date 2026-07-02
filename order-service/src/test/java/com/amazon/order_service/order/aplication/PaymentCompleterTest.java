@@ -4,7 +4,6 @@ import com.amazon.order_service.order.domain.Order;
 import com.amazon.order_service.order.domain.OrderRepository;
 import com.amazon.order_service.order.domain.exception.OrderNotFoundException;
 import com.amazon.order_service.order.domain.exception.PaymentAlreadyPaidException;
-import com.amazon.order_service.order.domain.exception.PaymentNotFoundException;
 import com.amazon.shared.core.domain.vo.Money;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -31,13 +30,13 @@ class PaymentCompleterTest {
     private PaymentCompleter paymentCompleter;
 
     @Test
-    void complete_updatesOrderPayment_whenOrderAndPaymentMatch() {
-        Order order = Order.create(UUID.randomUUID(), 2, new Money(new BigDecimal("10.00"))).addPayment();
+    void complete_marksOrderAsPaid() {
+        Order order = Order.create(UUID.randomUUID(), 2, new Money(new BigDecimal("10.00")));
         when(orderRepository.findById(order.id())).thenReturn(Optional.of(order));
 
-        paymentCompleter.complete(order.id(), order.payment().id());
+        paymentCompleter.complete(order.id(), UUID.randomUUID());
 
-        verify(orderRepository).updatePayment(any(Order.class));
+        verify(orderRepository).update(any(Order.class));
     }
 
     @Test
@@ -50,20 +49,12 @@ class PaymentCompleterTest {
     }
 
     @Test
-    void complete_throwsPaymentNotFoundException_whenPaymentIdDoesNotMatch() {
-        Order order = Order.create(UUID.randomUUID(), 2, new Money(new BigDecimal("10.00"))).addPayment();
-        when(orderRepository.findById(order.id())).thenReturn(Optional.of(order));
+    void complete_throwsPaymentAlreadyPaidException_whenOrderAlreadyPaid() {
+        Order paidOrder = Order.create(UUID.randomUUID(), 2, new Money(new BigDecimal("10.00")))
+                .markPaid(UUID.randomUUID());
+        when(orderRepository.findById(paidOrder.id())).thenReturn(Optional.of(paidOrder));
 
-        assertThatThrownBy(() -> paymentCompleter.complete(order.id(), UUID.randomUUID()))
-                .isInstanceOf(PaymentNotFoundException.class);
-    }
-
-    @Test
-    void complete_throwsPaymentAlreadyPaidException_whenPaymentAlreadyPaid() {
-        Order order = Order.create(UUID.randomUUID(), 2, new Money(new BigDecimal("10.00"))).addPayment().completePayment();
-        when(orderRepository.findById(order.id())).thenReturn(Optional.of(order));
-
-        assertThatThrownBy(() -> paymentCompleter.complete(order.id(), order.payment().id()))
+        assertThatThrownBy(() -> paymentCompleter.complete(paidOrder.id(), UUID.randomUUID()))
                 .isInstanceOf(PaymentAlreadyPaidException.class);
     }
 }

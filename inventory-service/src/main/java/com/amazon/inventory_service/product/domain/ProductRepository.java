@@ -11,5 +11,7 @@ public interface ProductRepository {
 
     Optional<Product> findById(UUID id);
 
+    Optional<Product> findByIdForUpdate(UUID id);
+
     void updateStock(Product product);
 }

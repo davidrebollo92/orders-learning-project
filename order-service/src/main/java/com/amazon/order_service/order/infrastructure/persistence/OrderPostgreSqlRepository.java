@@ -16,7 +16,6 @@ import java.util.UUID;
 public class OrderPostgreSqlRepository implements OrderRepository {
 
     private final JpaOrderRepository jpaOrderRepository;
-    private final JpaOrderPaymentRepository jpaOrderPaymentRepository;
     private final OrderEntityMapper orderEntityMapper;
 
     @Override
@@ -42,8 +41,7 @@ public class OrderPostgreSqlRepository implements OrderRepository {
     }
 
     @Override
-    public void updatePayment(Order order) {
-        jpaOrderRepository.updateState(order.id(), order.state());
-        jpaOrderPaymentRepository.updateState(order.payment().id(), order.payment().state());
+    public void update(Order order) {
+        jpaOrderRepository.update(order.id(), order.state(), order.payment().id(), order.payment().state());
     }
 }

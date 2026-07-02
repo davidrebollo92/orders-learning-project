@@ -2,7 +2,6 @@ package com.amazon.payment_service.payment.infrastructure.messaging;
 
 import com.amazon.avro.OrderCreatedEvent;
 import com.amazon.payment_service.payment.aplication.PaymentCreator;
-import com.amazon.payment_service.payment.domain.Payment;
 import com.amazon.payment_service.payment.domain.exception.PaymentAlreadyPaidException;
 import com.amazon.payment_service.payment.infrastructure.persistence.JpaDeadLetterEventRepository;
 import com.amazon.payment_service.payment.infrastructure.persistence.entity.DeadLetterEventEntity;
@@ -42,9 +41,10 @@ public class OrderCreatedKafkaEventConsumer {
     @KafkaListener(topics = "#{@kafkaTopicsConfig.ordersCreated}", groupId = "payment-processor")
     public void consume(OrderCreatedEvent event) {
         try {
-            Payment payment = Payment.create(UUID.fromString(event.getPaymentId()), UUID.fromString(event.getOrderId()), new Money(new BigDecimal(event.getAmount())));
-
-            paymentCreator.create(payment);
+            paymentCreator.create(
+                    UUID.fromString(event.getOrderId()),
+                    new Money(new BigDecimal(event.getAmount()))
+            );
         } catch (PaymentAlreadyPaidException ex) {
             log.warn("Duplicate OrderCreatedEvent received: {}", ex.getMessage());
         }

@@ -6,7 +6,6 @@ import com.amazon.order_service.order.aplication.OrderCanceller;
 import com.amazon.order_service.order.aplication.PaymentCompleter;
 import com.amazon.order_service.order.domain.exception.OrderNotFoundException;
 import com.amazon.order_service.order.domain.exception.PaymentAlreadyPaidException;
-import com.amazon.order_service.order.domain.exception.PaymentNotFoundException;
 import com.amazon.order_service.order.infrastructure.persistence.JpaDeadLetterEventRepository;
 import com.amazon.order_service.order.infrastructure.persistence.entity.DeadLetterEventEntity;
 import com.amazon.shared.core.infrastructure.messaging.AvroUtils;
@@ -45,8 +44,6 @@ public class PaymentKafkaEventConsumer {
     public void consumeCompleted(PaymentCompletedEvent event) {
         try {
             paymentCompleter.complete(UUID.fromString(event.getOrderId()), UUID.fromString(event.getPaymentId()));
-        } catch (PaymentNotFoundException ex) {
-            log.error("PaymentCompletedEvent received for unknown payment: {}", ex.getMessage());
         } catch (OrderNotFoundException ex) {
             log.error("PaymentCompletedEvent received for unknown order: {}", ex.getMessage());
         } catch (PaymentAlreadyPaidException ex) {
@@ -63,8 +60,6 @@ public class PaymentKafkaEventConsumer {
     public void consumeFailed(PaymentFailedEvent event) {
         try {
             orderCanceller.cancel(UUID.fromString(event.getOrderId()), UUID.fromString(event.getPaymentId()));
-        } catch (PaymentNotFoundException ex) {
-            log.error("PaymentFailedEvent received for unknown payment: {}", ex.getMessage());
         } catch (OrderNotFoundException ex) {
             log.error("PaymentFailedEvent received for unknown order: {}", ex.getMessage());
         }

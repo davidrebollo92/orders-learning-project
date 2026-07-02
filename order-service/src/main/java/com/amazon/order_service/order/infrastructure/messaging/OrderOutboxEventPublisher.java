@@ -27,7 +27,6 @@ public class OrderOutboxEventPublisher implements OrderEventPublisher {
                 .setProductId(order.productId().toString())
                 .setQuantity(order.quantity())
                 .setAmount(order.money().amount().toPlainString())
-                .setPaymentId(order.payment().id().toString())
                 .build();
 
         jpaOutboxEventRepository.save(new OutboxEventEntity(

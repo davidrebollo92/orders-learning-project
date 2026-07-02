@@ -53,7 +53,7 @@ class OrderControllerTest {
     @Test
     void create_returns201WithOrderResponse_whenRequestIsValid() throws Exception {
         CreateOrderRequest request = new CreateOrderRequest(PRODUCT_ID, 2);
-        Order orderWithPayment = Order.create(PRODUCT_ID, 2, new Money(new BigDecimal("20.00"))).addPayment();
+        Order orderWithPayment = Order.create(PRODUCT_ID, 2, new Money(new BigDecimal("20.00")));
         OrderResponse response = new OrderResponse(ORDER_ID, PRODUCT_ID, 2, new BigDecimal("20.00"),
                 OrderResponse.StateEnum.CREATED, new PaymentResponse(PAYMENT_ID, PaymentResponse.StateEnum.PENDING));
 

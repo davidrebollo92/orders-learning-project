@@ -1,12 +1,11 @@
 package com.amazon.order_service.order.domain;
 
-import com.amazon.order_service.order.domain.exception.PaymentAlreadyPaidException;
-import lombok.AccessLevel;
-import lombok.Builder;
-
 import java.util.UUID;
 
-@Builder(access = AccessLevel.PRIVATE, setterPrefix = "with", toBuilder = true)
+/**
+ * Read-model projection of the payment owned by payment-service.
+ * order-service does not decide this state; it mirrors what payment events report.
+ */
 public record Payment(UUID id, State state) {
 
     public enum State {
@@ -15,23 +14,15 @@ public record Payment(UUID id, State state) {
         FAILED
     }
 
-    public Payment pay() {
-        if (state == State.PAID) {
-            throw new PaymentAlreadyPaidException(id);
-        }
-
-        return toBuilder().withState(State.PAID).build();
+    public static Payment pending() {
+        return new Payment(null, State.PENDING);
     }
 
-    public Payment fail() {
-        if (this.state == State.PAID) {
-            throw new PaymentAlreadyPaidException(id);
-        }
+    public static Payment paid(UUID id) {
+        return new Payment(id, State.PAID);
+    }
 
-        if (this.state == State.FAILED) {
-            return this;
-        }
-
-        return toBuilder().withState(State.FAILED).build();
+    public static Payment failed(UUID id) {
+        return new Payment(id, State.FAILED);
     }
 }

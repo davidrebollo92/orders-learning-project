@@ -96,7 +96,6 @@ class PaymentIntegrationTest {
     @Test
     void consumeOrderCreated_savesPaymentAndPublishesPaymentCompletedEvent() {
         UUID orderId = UUID.randomUUID();
-        UUID paymentId = UUID.randomUUID();
 
         Map<String, Object> consumerProps = KafkaTestUtils.consumerProps(
                 "test-group-consumer", "true", embeddedKafkaBroker);
@@ -109,10 +108,10 @@ class PaymentIntegrationTest {
         embeddedKafkaBroker.consumeFromAnEmbeddedTopic(
                 consumer, "amazon.env.order-management.payments.completed.pub");
 
-        publishOrderCreatedEvent(orderId, paymentId, new BigDecimal("50.00"));
+        publishOrderCreatedEvent(orderId, new BigDecimal("50.00"));
 
         await().atMost(Duration.ofSeconds(10)).untilAsserted(() -> {
-            Optional<PaymentEntity> payment = jpaPaymentRepository.findById(paymentId);
+            Optional<PaymentEntity> payment = jpaPaymentRepository.findByOrderId(orderId);
             assertThat(payment).isPresent();
             assertThat(payment.get().getState()).isEqualTo(Payment.State.PAID);
             assertThat(payment.get().getOrderId()).isEqualTo(orderId);
@@ -123,22 +122,21 @@ class PaymentIntegrationTest {
 
         assertThat(records.count()).isEqualTo(1);
         PaymentCompletedEvent event = (PaymentCompletedEvent) records.iterator().next().value();
-        assertThat(event.getPaymentId()).isEqualTo(paymentId.toString());
+        assertThat(event.getPaymentId()).isNotNull();
         assertThat(event.getOrderId()).isEqualTo(orderId.toString());
     }
 
     @Test
     void consumeOrderCreated_isIdempotent_whenSameEventConsumedTwice() {
         UUID orderId = UUID.randomUUID();
-        UUID paymentId = UUID.randomUUID();
 
-        publishOrderCreatedEvent(orderId, paymentId, new BigDecimal("50.00"));
-        publishOrderCreatedEvent(orderId, paymentId, new BigDecimal("50.00"));
+        publishOrderCreatedEvent(orderId, new BigDecimal("50.00"));
+        publishOrderCreatedEvent(orderId, new BigDecimal("50.00"));
 
         await().atMost(Duration.ofSeconds(10)).untilAsserted(() -> {
             List<PaymentEntity> payments = jpaPaymentRepository.findAll();
             assertThat(payments).hasSize(1);
-            assertThat(payments.get(0).getId()).isEqualTo(paymentId);
+            assertThat(payments.get(0).getOrderId()).isEqualTo(orderId);
         });
     }
 
@@ -148,7 +146,6 @@ class PaymentIntegrationTest {
                 .setOrderId(UUID.randomUUID().toString())
                 .setProductId(UUID.randomUUID().toString())
                 .setQuantity(1)
-                .setPaymentId(UUID.randomUUID().toString())
                 .setAmount("100.00")
                 .build();
 
@@ -163,13 +160,12 @@ class PaymentIntegrationTest {
         });
     }
 
-    private void publishOrderCreatedEvent(UUID orderId, UUID paymentId, BigDecimal amount) {
+    private void publishOrderCreatedEvent(UUID orderId, BigDecimal amount) {
         OrderCreatedEvent event = OrderCreatedEvent.newBuilder()
                 .setOrderId(orderId.toString())
                 .setProductId(UUID.randomUUID().toString())
                 .setQuantity(1)
                 .setAmount(amount.toPlainString())
-                .setPaymentId(paymentId.toString())
                 .build();
 
         publishToDltTopic(event, "amazon.env.order-management.orders.created.pub");

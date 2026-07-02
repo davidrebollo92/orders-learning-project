@@ -5,7 +5,7 @@ import com.amazon.avro.PaymentCompletedEvent;
 import com.amazon.avro.PaymentFailedEvent;
 import com.amazon.order_service.order.domain.Payment;
 import com.amazon.order_service.order.domain.ProductData;
-import com.amazon.order_service.order.domain.ProductGateway;
+import com.amazon.order_service.order.infrastructure.gateway.InventoryServiceGateway;
 import com.amazon.order_service.order.infrastructure.http.dto.CreateOrderRequest;
 import com.amazon.shared.core.domain.vo.Money;
 import com.amazon.order_service.order.infrastructure.persistence.JpaDeadLetterEventRepository;
@@ -104,7 +104,7 @@ class OrderIntegrationTest {
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     @MockitoBean
-    private ProductGateway productGateway;
+    private InventoryServiceGateway inventoryServiceGateway;
 
     @Autowired
     private JpaOrderRepository jpaOrderRepository;
@@ -123,7 +123,7 @@ class OrderIntegrationTest {
         jpaDeadLetterEventRepository.deleteAll();
         jpaOutboxEventRepository.deleteAll();
         jpaOrderRepository.deleteAll();
-        when(productGateway.findById(any())).thenReturn(new ProductData(PRODUCT_ID, PRODUCT_PRICE));
+        when(inventoryServiceGateway.findById(any())).thenReturn(new ProductData(PRODUCT_ID, PRODUCT_PRICE));
     }
 
     @Test
@@ -140,7 +140,7 @@ class OrderIntegrationTest {
 
         List<OrderEntity> orders = jpaOrderRepository.findAll();
         assertThat(orders).hasSize(1);
-        assertThat(orders.get(0).getPayment().getState()).isEqualTo(Payment.State.PENDING);
+        assertThat(orders.get(0).getPaymentState()).isEqualTo(Payment.State.PENDING);
     }
 
     @Test
@@ -168,7 +168,6 @@ class OrderIntegrationTest {
         assertThat(records.count()).isEqualTo(1);
         OrderCreatedEvent event = (OrderCreatedEvent) records.iterator().next().value();
         assertThat(event.getOrderId()).isNotNull();
-        assertThat(event.getPaymentId()).isNotNull();
         assertThat(event.getAmount()).isNotNull();
         assertThat(event.getProductId()).isEqualTo(PRODUCT_ID.toString());
         assertThat(event.getQuantity()).isEqualTo(2);

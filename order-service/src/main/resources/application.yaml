@@ -1,6 +1,8 @@
 app:
   inventory-service:
     base-url: http://localhost:8083
+    connect-timeout: 2s
+    read-timeout: 3s
   kafka:
     topics:
       orders-created: amazon.env.order-management.orders.created.pub

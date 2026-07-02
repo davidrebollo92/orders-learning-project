@@ -6,7 +6,6 @@ import com.amazon.order_service.order.aplication.OrderCanceller;
 import com.amazon.order_service.order.aplication.PaymentCompleter;
 import com.amazon.order_service.order.domain.exception.OrderNotFoundException;
 import com.amazon.order_service.order.domain.exception.PaymentAlreadyPaidException;
-import com.amazon.order_service.order.domain.exception.PaymentNotFoundException;
 import com.amazon.order_service.order.infrastructure.persistence.JpaDeadLetterEventRepository;
 import com.amazon.order_service.order.infrastructure.persistence.entity.DeadLetterEventEntity;
 import org.junit.jupiter.api.Test;
@@ -74,15 +73,6 @@ class PaymentKafkaEventConsumerTest {
     }
 
     @Test
-    void consumeCompleted_doesNotThrow_whenPaymentNotFound() {
-        UUID orderId = UUID.randomUUID();
-        UUID paymentId = UUID.randomUUID();
-        doThrow(new PaymentNotFoundException(paymentId)).when(paymentCompleter).complete(orderId, paymentId);
-
-        assertThatNoException().isThrownBy(() -> consumer.consumeCompleted(completedEvent(paymentId, orderId)));
-    }
-
-    @Test
     void consumeCompleted_doesNotThrow_whenOrderNotFound() {
         UUID orderId = UUID.randomUUID();
         UUID paymentId = UUID.randomUUID();
@@ -98,15 +88,6 @@ class PaymentKafkaEventConsumerTest {
         doThrow(new PaymentAlreadyPaidException(paymentId)).when(paymentCompleter).complete(orderId, paymentId);
 
         assertThatNoException().isThrownBy(() -> consumer.consumeCompleted(completedEvent(paymentId, orderId)));
-    }
-
-    @Test
-    void consumeFailed_doesNotThrow_whenPaymentNotFound() {
-        UUID orderId = UUID.randomUUID();
-        UUID paymentId = UUID.randomUUID();
-        doThrow(new PaymentNotFoundException(paymentId)).when(orderCanceller).cancel(orderId, paymentId);
-
-        assertThatNoException().isThrownBy(() -> consumer.consumeFailed(failedEvent(paymentId, orderId)));
     }
 
     @Test

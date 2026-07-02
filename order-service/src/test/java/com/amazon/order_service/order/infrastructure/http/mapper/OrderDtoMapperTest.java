@@ -19,8 +19,8 @@ class OrderDtoMapperTest {
     private static final int QUANTITY = 2;
 
     @Test
-    void toResponse_returnsOrderResponseWithAllFields() {
-        Order order = Order.create(PRODUCT_ID, QUANTITY, new Money(new BigDecimal("10.00"))).addPayment();
+    void toResponse_returnsOrderResponseWithPendingPayment() {
+        Order order = Order.create(PRODUCT_ID, QUANTITY, new Money(new BigDecimal("10.00")));
 
         OrderResponse response = mapper.toResponse(order);
 
@@ -28,16 +28,18 @@ class OrderDtoMapperTest {
         assertThat(response.getProductId()).isEqualTo(PRODUCT_ID);
         assertThat(response.getQuantity()).isEqualTo(QUANTITY);
         assertThat(response.getAmount()).isEqualByComparingTo(new BigDecimal("20.00"));
-        assertThat(response.getPayment().getId()).isEqualTo(order.payment().id());
+        assertThat(response.getPayment().getId()).isNull();
         assertThat(response.getPayment().getState().name()).isEqualTo(Payment.State.PENDING.name());
     }
 
     @Test
     void toResponse_reflectsPaidState_whenPaymentIsCompleted() {
-        Order order = Order.create(PRODUCT_ID, QUANTITY, new Money(new BigDecimal("10.00"))).addPayment().completePayment();
+        UUID paymentId = UUID.randomUUID();
+        Order order = Order.create(PRODUCT_ID, QUANTITY, new Money(new BigDecimal("10.00"))).markPaid(paymentId);
 
         OrderResponse response = mapper.toResponse(order);
 
+        assertThat(response.getPayment().getId()).isEqualTo(paymentId);
         assertThat(response.getPayment().getState().name()).isEqualTo(Payment.State.PAID.name());
     }
 }

@@ -1,5 +1,6 @@
 package com.amazon.order_service.order.infrastructure.http;
 
+import com.amazon.order_service.order.domain.exception.InsufficientStockException;
 import com.amazon.order_service.order.domain.exception.OrderDomainException;
 import com.amazon.order_service.order.domain.exception.OrderNotFoundException;
 import com.amazon.shared.core.infrastructure.http.ErrorDto;
@@ -15,6 +16,12 @@ public class OrderExceptionHandler {
     @ExceptionHandler(OrderNotFoundException.class)
     public ResponseEntity<ErrorDto> handleNotFoundException(OrderNotFoundException ex) {
         return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(new ErrorDto(ex.getMessage(), ex.getCode()));
+    }
+
+    @ExceptionHandler(InsufficientStockException.class)
+    public ResponseEntity<ErrorDto> handleInsufficientStock(InsufficientStockException ex) {
+        return ResponseEntity.status(HttpStatus.CONFLICT)
                 .body(new ErrorDto(ex.getMessage(), ex.getCode()));
     }
 

@@ -17,6 +17,7 @@ import java.util.Optional;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -37,14 +38,15 @@ class PaymentCreatorTest {
 
     @Test
     void create_savesPaymentAndPublishesEvent_whenPaymentIsNew() {
-        Payment payment = Payment.create(UUID.randomUUID(), UUID.randomUUID(), new Money(new BigDecimal("50.00")));
-        Payment paidPayment = payment.pay(UUID.randomUUID());
+        UUID orderId = UUID.randomUUID();
+        Money amount = new Money(new BigDecimal("50.00"));
+        Payment paidPayment = Payment.create(UUID.randomUUID(), orderId, amount).pay(UUID.randomUUID());
 
-        when(paymentRepository.findById(payment.id())).thenReturn(Optional.empty());
-        when(paymentGateway.process(payment)).thenReturn(paidPayment);
+        when(paymentRepository.findByOrderId(orderId)).thenReturn(Optional.empty());
+        when(paymentGateway.process(any(Payment.class))).thenReturn(paidPayment);
         when(paymentRepository.save(paidPayment)).thenReturn(paidPayment);
 
-        paymentCreator.create(payment);
+        paymentCreator.create(orderId, amount);
 
         verify(paymentRepository).save(paidPayment);
         verify(paymentEventPublisher).publish(paidPayment);
@@ -52,26 +54,29 @@ class PaymentCreatorTest {
 
     @Test
     void create_savesFailedPaymentAndPublishesEvent_whenGatewayFails() {
-        Payment payment = Payment.create(UUID.randomUUID(), UUID.randomUUID(), new Money(new BigDecimal("1500.00")));
-        Payment failedPayment = payment.fail();
+        UUID orderId = UUID.randomUUID();
+        Money amount = new Money(new BigDecimal("1500.00"));
+        Payment failedPayment = Payment.create(UUID.randomUUID(), orderId, amount).fail();
 
-        when(paymentRepository.findById(payment.id())).thenReturn(Optional.empty());
-        when(paymentGateway.process(payment)).thenReturn(failedPayment);
+        when(paymentRepository.findByOrderId(orderId)).thenReturn(Optional.empty());
+        when(paymentGateway.process(any(Payment.class))).thenReturn(failedPayment);
         when(paymentRepository.save(failedPayment)).thenReturn(failedPayment);
 
-        paymentCreator.create(payment);
+        paymentCreator.create(orderId, amount);
 
         verify(paymentRepository).save(failedPayment);
         verify(paymentEventPublisher).publish(failedPayment);
     }
 
     @Test
-    void create_throwsPaymentAlreadyPaidException_whenPaymentAlreadyExists() {
-        Payment payment = Payment.create(UUID.randomUUID(), UUID.randomUUID(), new Money(new BigDecimal("50.00")));
+    void create_throwsPaymentAlreadyPaidException_whenPaymentForOrderAlreadyExists() {
+        UUID orderId = UUID.randomUUID();
+        Money amount = new Money(new BigDecimal("50.00"));
+        Payment existing = Payment.create(UUID.randomUUID(), orderId, amount);
 
-        when(paymentRepository.findById(payment.id())).thenReturn(Optional.of(payment));
+        when(paymentRepository.findByOrderId(orderId)).thenReturn(Optional.of(existing));
 
-        assertThatThrownBy(() -> paymentCreator.create(payment))
+        assertThatThrownBy(() -> paymentCreator.create(orderId, amount))
                 .isInstanceOf(PaymentAlreadyPaidException.class);
     }
 }

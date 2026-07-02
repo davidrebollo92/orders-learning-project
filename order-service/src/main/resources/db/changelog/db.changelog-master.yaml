@@ -11,3 +11,7 @@ databaseChangeLog:
       file: db/changelog/changes/005_create_dead_letter_events.sql
   - include:
       file: db/changelog/changes/006_update_orders_table.sql
+  - include:
+      file: db/changelog/changes/007_drop_payments_table.sql
+  - include:
+      file: db/changelog/changes/008_add_payment_state_to_orders.sql

@@ -13,15 +13,18 @@ public class OrderCreator {
 
     private final OrderRepository orderRepository;
     private final ProductGateway productGateway;
+    private final StockReservationGateway stockReservationGateway;
     private final OrderEventPublisher orderEventPublisher;
 
     @Transactional
     public Order create(UUID productId, int quantity) {
         ProductData productData = productGateway.findById(productId);
-        
+
         Order order = Order.create(productId, quantity, productData.price());
 
-        Order created = orderRepository.save(order.addPayment());
+        stockReservationGateway.reserve(order.id(), productId, quantity);
+
+        Order created = orderRepository.save(order);
 
         orderEventPublisher.publishOrderCreated(created);
 

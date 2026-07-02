@@ -18,7 +18,7 @@ class OrderTest {
     private static final Money MONEY = new Money(new BigDecimal("10.00"));
 
     @Test
-    void create_returnsOrderWithProductIdQuantityAndAmount() {
+    void create_returnsOrderWithPendingPayment() {
         Order order = Order.create(PRODUCT_ID, QUANTITY, MONEY);
 
         assertThat(order.id()).isNotNull();
@@ -26,7 +26,8 @@ class OrderTest {
         assertThat(order.quantity()).isEqualTo(QUANTITY);
         assertThat(order.money()).isEqualTo(new Money(new BigDecimal("20.00")));
         assertThat(order.state()).isEqualTo(Order.State.CREATED);
-        assertThat(order.payment()).isNull();
+        assertThat(order.payment().state()).isEqualTo(Payment.State.PENDING);
+        assertThat(order.payment().id()).isNull();
     }
 
     @Test
@@ -38,51 +39,42 @@ class OrderTest {
     }
 
     @Test
-    void addPayment_returnsOrderWithPendingPayment() {
-        Order order = Order.create(PRODUCT_ID, QUANTITY, MONEY);
+    void markPaid_returnsOrderPaidWithPaymentReference() {
+        UUID paymentId = UUID.randomUUID();
 
-        Order withPayment = order.addPayment();
+        Order paid = Order.create(PRODUCT_ID, QUANTITY, MONEY).markPaid(paymentId);
 
-        assertThat(withPayment.payment()).isNotNull();
-        assertThat(withPayment.payment().id()).isNotNull();
-        assertThat(withPayment.payment().state()).isEqualTo(Payment.State.PENDING);
+        assertThat(paid.state()).isEqualTo(Order.State.PAID);
+        assertThat(paid.payment().state()).isEqualTo(Payment.State.PAID);
+        assertThat(paid.payment().id()).isEqualTo(paymentId);
     }
 
     @Test
-    void completePayment_returnsOrderWithPaidPayment() {
-        Order order = Order.create(PRODUCT_ID, QUANTITY, MONEY).addPayment();
+    void markPaid_throwsPaymentAlreadyPaidException_whenAlreadyPaid() {
+        Order paid = Order.create(PRODUCT_ID, QUANTITY, MONEY).markPaid(UUID.randomUUID());
 
-        Order completed = order.completePayment();
-
-        assertThat(completed.payment().state()).isEqualTo(Payment.State.PAID);
-        assertThat(completed.payment().id()).isEqualTo(order.payment().id());
-    }
-
-    @Test
-    void completePayment_throwsPaymentAlreadyPaidException_whenPaymentAlreadyPaid() {
-        Order order = Order.create(PRODUCT_ID, QUANTITY, MONEY).addPayment().completePayment();
-
-        assertThatThrownBy(order::completePayment)
+        assertThatThrownBy(() -> paid.markPaid(UUID.randomUUID()))
                 .isInstanceOf(PaymentAlreadyPaidException.class);
     }
 
     @Test
-    void cancel_returnsOrderWithCancelledStateAndFailedPayment() {
-        Order order = Order.create(PRODUCT_ID, QUANTITY, MONEY).addPayment();
+    void cancel_returnsOrderCancelledWithFailedPayment() {
+        UUID paymentId = UUID.randomUUID();
 
-        Order cancelled = order.cancel();
+        Order cancelled = Order.create(PRODUCT_ID, QUANTITY, MONEY).cancel(paymentId);
 
         assertThat(cancelled.state()).isEqualTo(Order.State.CANCELLED);
         assertThat(cancelled.payment().state()).isEqualTo(Payment.State.FAILED);
-        assertThat(cancelled.payment().id()).isEqualTo(order.payment().id());
+        assertThat(cancelled.payment().id()).isEqualTo(paymentId);
     }
 
     @Test
-    void cancel_isIdempotent_whenPaymentAlreadyFailed() {
-        Order order = Order.create(PRODUCT_ID, QUANTITY, MONEY).addPayment().cancel();
+    void cancel_isIdempotent_whenAlreadyCancelled() {
+        Order cancelled = Order.create(PRODUCT_ID, QUANTITY, MONEY).cancel(UUID.randomUUID());
 
-        Order cancelledAgain = order.cancel();
+        Order cancelledAgain = cancelled.cancel(UUID.randomUUID());
 
+        assertThat(cancelledAgain).isSameAs(cancelled);
         assertThat(cancelledAgain.state()).isEqualTo(Order.State.CANCELLED);
         assertThat(cancelledAgain.payment().state()).isEqualTo(Payment.State.FAILED);
     }

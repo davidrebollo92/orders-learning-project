@@ -107,6 +107,7 @@ components:
         id:
           type: string
           format: uuid
+          nullable: true
         state:
           type: string
           enum: [ PENDING, PAID, FAILED ]

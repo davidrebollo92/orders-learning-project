@@ -21,7 +21,7 @@ public class StockReleaser {
     @Transactional
     public void release(UUID orderId) {
         Reservation reservation = reservationRepository.findByOrderId(orderId).orElseThrow(() -> new ReservationNotFoundException(orderId));
-        Product product = productRepository.findById(reservation.productId()).orElseThrow(() -> new ProductNotFoundException(reservation.productId()));
+        Product product = productRepository.findByIdForUpdate(reservation.productId()).orElseThrow(() -> new ProductNotFoundException(reservation.productId()));
 
         final Product productReleased = product.releaseReservation(reservation.quantity());
         final Reservation reservationReleased = reservation.release();

@@ -1,16 +1,13 @@
 package com.amazon.order_service.order.infrastructure.persistence.mapper;
 
 import com.amazon.order_service.order.domain.Order;
+import com.amazon.order_service.order.domain.Payment;
 import com.amazon.order_service.order.infrastructure.persistence.entity.OrderEntity;
 import com.amazon.shared.core.domain.vo.Money;
-import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
 @Component
-@RequiredArgsConstructor
 public class OrderEntityMapper {
-
-    private final OrderPaymentEntityMapper paymentEntityMapper;
 
     public OrderEntity toEntity(Order order) {
 
@@ -21,7 +18,8 @@ public class OrderEntityMapper {
         entity.setQuantity(order.quantity());
         entity.setAmount(order.money().amount());
         entity.setState(order.state());
-        entity.setPayment(paymentEntityMapper.toEntity(order.payment()));
+        entity.setPaymentId(order.payment().id());
+        entity.setPaymentState(order.payment().state());
 
         return entity;
     }
@@ -34,7 +32,7 @@ public class OrderEntityMapper {
                 entity.getQuantity(),
                 new Money(entity.getAmount()),
                 entity.getState(),
-                paymentEntityMapper.toDomain(entity.getPayment())
+                new Payment(entity.getPaymentId(), entity.getPaymentState())
         );
     }
 }

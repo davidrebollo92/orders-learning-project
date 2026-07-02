@@ -5,6 +5,7 @@ import com.amazon.payment_service.payment.aplication.PaymentCreator;
 import com.amazon.payment_service.payment.domain.exception.PaymentAlreadyPaidException;
 import com.amazon.payment_service.payment.infrastructure.persistence.JpaDeadLetterEventRepository;
 import com.amazon.payment_service.payment.infrastructure.persistence.entity.DeadLetterEventEntity;
+import com.amazon.shared.core.domain.vo.Money;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -32,35 +33,33 @@ class OrderCreatedKafkaEventConsumerTest {
     @InjectMocks
     private OrderCreatedKafkaEventConsumer consumer;
 
-    private OrderCreatedEvent event(UUID orderId, UUID paymentId) {
+    private OrderCreatedEvent event(UUID orderId) {
         return OrderCreatedEvent.newBuilder()
                 .setOrderId(orderId.toString())
                 .setProductId(UUID.randomUUID().toString())
                 .setQuantity(1)
                 .setAmount("50.00")
-                .setPaymentId(paymentId.toString())
                 .build();
     }
 
     @Test
     void consume_callsPaymentCreator() {
-        consumer.consume(event(UUID.randomUUID(), UUID.randomUUID()));
+        consumer.consume(event(UUID.randomUUID()));
 
-        verify(paymentCreator).create(any());
+        verify(paymentCreator).create(any(UUID.class), any(Money.class));
     }
 
     @Test
     void consume_doesNotThrow_whenPaymentAlreadyPaid() {
-        doThrow(new PaymentAlreadyPaidException(UUID.randomUUID())).when(paymentCreator).create(any());
+        doThrow(new PaymentAlreadyPaidException(UUID.randomUUID()))
+                .when(paymentCreator).create(any(UUID.class), any(Money.class));
 
-        assertThatNoException().isThrownBy(() -> consumer.consume(event(UUID.randomUUID(), UUID.randomUUID())));
+        assertThatNoException().isThrownBy(() -> consumer.consume(event(UUID.randomUUID())));
     }
 
     @Test
     void handleDlt_savesEventToDeadLetterRepository() {
-        UUID orderId = UUID.randomUUID();
-        UUID paymentId = UUID.randomUUID();
-        OrderCreatedEvent orderCreatedEvent = event(orderId, paymentId);
+        OrderCreatedEvent orderCreatedEvent = event(UUID.randomUUID());
 
         consumer.handleDlt(orderCreatedEvent, "orders.created-dlt", 0, 15L, "some error");
 
@@ -80,7 +79,6 @@ class OrderCreatedKafkaEventConsumerTest {
     @Test
     void handleDlt_doesNotThrow_whenExceptionMessageIsNull() {
         assertThatNoException().isThrownBy(() ->
-                consumer.handleDlt(event(UUID.randomUUID(), UUID.randomUUID()),
-                        "topic-dlt", 0, 0L, null));
+                consumer.handleDlt(event(UUID.randomUUID()), "topic-dlt", 0, 0L, null));
     }
 }

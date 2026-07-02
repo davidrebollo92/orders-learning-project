@@ -3,7 +3,6 @@ package com.amazon.order_service.order.infrastructure.persistence.mapper;
 import com.amazon.order_service.order.domain.Order;
 import com.amazon.order_service.order.domain.Payment;
 import com.amazon.order_service.order.infrastructure.persistence.entity.OrderEntity;
-import com.amazon.order_service.order.infrastructure.persistence.entity.OrderPaymentEntity;
 import com.amazon.shared.core.domain.vo.Money;
 import org.junit.jupiter.api.Test;
 
@@ -14,15 +13,15 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 class OrderEntityMapperTest {
 
-    private final OrderPaymentEntityMapper paymentMapper = new OrderPaymentEntityMapper();
-    private final OrderEntityMapper mapper = new OrderEntityMapper(paymentMapper);
+    private final OrderEntityMapper mapper = new OrderEntityMapper();
 
     private static final UUID PRODUCT_ID = UUID.randomUUID();
     private static final int QUANTITY = 2;
 
     @Test
     void toEntity_mapsAllFields() {
-        Order order = Order.create(PRODUCT_ID, QUANTITY, new Money(new BigDecimal("10.00"))).addPayment();
+        UUID paymentId = UUID.randomUUID();
+        Order order = Order.create(PRODUCT_ID, QUANTITY, new Money(new BigDecimal("10.00"))).markPaid(paymentId);
 
         OrderEntity entity = mapper.toEntity(order);
 
@@ -30,8 +29,9 @@ class OrderEntityMapperTest {
         assertThat(entity.getProductId()).isEqualTo(PRODUCT_ID);
         assertThat(entity.getQuantity()).isEqualTo(QUANTITY);
         assertThat(entity.getAmount()).isEqualByComparingTo(new BigDecimal("20.00"));
-        assertThat(entity.getPayment().getId()).isEqualTo(order.payment().id());
-        assertThat(entity.getPayment().getState()).isEqualTo(Payment.State.PENDING);
+        assertThat(entity.getState()).isEqualTo(Order.State.PAID);
+        assertThat(entity.getPaymentId()).isEqualTo(paymentId);
+        assertThat(entity.getPaymentState()).isEqualTo(Payment.State.PAID);
     }
 
     @Test
@@ -39,16 +39,14 @@ class OrderEntityMapperTest {
         UUID orderId = UUID.randomUUID();
         UUID paymentId = UUID.randomUUID();
 
-        OrderPaymentEntity paymentEntity = new OrderPaymentEntity();
-        paymentEntity.setId(paymentId);
-        paymentEntity.setState(Payment.State.PAID);
-
         OrderEntity entity = new OrderEntity();
         entity.setId(orderId);
         entity.setProductId(PRODUCT_ID);
         entity.setQuantity(QUANTITY);
         entity.setAmount(new BigDecimal("10.00"));
-        entity.setPayment(paymentEntity);
+        entity.setState(Order.State.PAID);
+        entity.setPaymentId(paymentId);
+        entity.setPaymentState(Payment.State.PAID);
 
         Order order = mapper.toDomain(entity);
 
@@ -56,6 +54,7 @@ class OrderEntityMapperTest {
         assertThat(order.productId()).isEqualTo(PRODUCT_ID);
         assertThat(order.quantity()).isEqualTo(QUANTITY);
         assertThat(order.money()).isEqualTo(new Money(new BigDecimal("10.00")));
+        assertThat(order.state()).isEqualTo(Order.State.PAID);
         assertThat(order.payment().id()).isEqualTo(paymentId);
         assertThat(order.payment().state()).isEqualTo(Payment.State.PAID);
     }

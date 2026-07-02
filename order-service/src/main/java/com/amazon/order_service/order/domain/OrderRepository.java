@@ -11,5 +11,5 @@ public interface OrderRepository {
 
     Optional<Order> findById(UUID id);
 
-    void updatePayment(Order order);
+    void update(Order order);
 }

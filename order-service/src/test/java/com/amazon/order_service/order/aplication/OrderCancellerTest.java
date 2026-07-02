@@ -3,7 +3,6 @@ package com.amazon.order_service.order.aplication;
 import com.amazon.order_service.order.domain.Order;
 import com.amazon.order_service.order.domain.OrderRepository;
 import com.amazon.order_service.order.domain.exception.OrderNotFoundException;
-import com.amazon.order_service.order.domain.exception.PaymentNotFoundException;
 import com.amazon.shared.core.domain.vo.Money;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -30,13 +29,13 @@ class OrderCancellerTest {
     private OrderCanceller orderCanceller;
 
     @Test
-    void cancel_updatesOrderToCancelled_whenOrderAndPaymentMatch() {
-        Order order = Order.create(UUID.randomUUID(), 2, new Money(new BigDecimal("10.00"))).addPayment();
+    void cancel_updatesOrderToCancelled() {
+        Order order = Order.create(UUID.randomUUID(), 2, new Money(new BigDecimal("10.00")));
         when(orderRepository.findById(order.id())).thenReturn(Optional.of(order));
 
-        orderCanceller.cancel(order.id(), order.payment().id());
+        orderCanceller.cancel(order.id(), UUID.randomUUID());
 
-        verify(orderRepository).updatePayment(any(Order.class));
+        verify(orderRepository).update(any(Order.class));
     }
 
     @Test
@@ -46,14 +45,5 @@ class OrderCancellerTest {
 
         assertThatThrownBy(() -> orderCanceller.cancel(orderId, UUID.randomUUID()))
                 .isInstanceOf(OrderNotFoundException.class);
-    }
-
-    @Test
-    void cancel_throwsPaymentNotFoundException_whenPaymentIdDoesNotMatch() {
-        Order order = Order.create(UUID.randomUUID(), 2, new Money(new BigDecimal("10.00"))).addPayment();
-        when(orderRepository.findById(order.id())).thenReturn(Optional.of(order));
-
-        assertThatThrownBy(() -> orderCanceller.cancel(order.id(), UUID.randomUUID()))
-                .isInstanceOf(PaymentNotFoundException.class);
     }
 }

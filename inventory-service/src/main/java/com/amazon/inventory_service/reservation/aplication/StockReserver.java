@@ -23,7 +23,7 @@ public class StockReserver {
             throw new ReservationAlreadyExistsException(reservation.orderId());
         }
 
-        Product product = productRepository.findById(reservation.productId()).orElseThrow(() -> new ProductNotFoundException(reservation.productId()));
+        Product product = productRepository.findByIdForUpdate(reservation.productId()).orElseThrow(() -> new ProductNotFoundException(reservation.productId()));
 
         final Product productReserved = product.reserve(reservation.quantity());
 

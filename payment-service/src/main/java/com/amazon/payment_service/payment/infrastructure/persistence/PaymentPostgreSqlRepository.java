@@ -23,6 +23,12 @@ public class PaymentPostgreSqlRepository implements PaymentRepository {
     }
 
     @Override
+    public Optional<Payment> findByOrderId(UUID orderId) {
+        return jpaPaymentRepository.findByOrderId(orderId)
+                .map(paymentEntityMapper::toDomain);
+    }
+
+    @Override
     public Payment save(Payment payment) {
         PaymentEntity entity = paymentEntityMapper.toEntity(payment);
         PaymentEntity saved = jpaPaymentRepository.save(entity);

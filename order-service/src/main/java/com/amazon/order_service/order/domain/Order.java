@@ -1,6 +1,7 @@
 package com.amazon.order_service.order.domain;
 
 import com.amazon.order_service.order.domain.exception.InvalidOrderAmountException;
+import com.amazon.order_service.order.domain.exception.PaymentAlreadyPaidException;
 import com.amazon.shared.core.domain.vo.Money;
 import lombok.AccessLevel;
 import lombok.Builder;
@@ -23,19 +24,22 @@ public record Order(UUID id, UUID productId, int quantity, Money money, State st
 
     public static Order create(UUID productId, int quantity, Money price) {
         Money money = new Money(price.amount().multiply(BigDecimal.valueOf(quantity)));
-        return new Order(UUID.randomUUID(), productId, quantity, money, State.CREATED, null);
+        return new Order(UUID.randomUUID(), productId, quantity, money, State.CREATED, Payment.pending());
     }
 
-    public Order addPayment() {
-        Payment payment = new Payment(UUID.randomUUID(), Payment.State.PENDING);
-        return toBuilder().withPayment(payment).build();
+    public Order markPaid(UUID paymentId) {
+        if (state == State.PAID) {
+            throw new PaymentAlreadyPaidException(paymentId);
+        }
+
+        return toBuilder().withState(State.PAID).withPayment(Payment.paid(paymentId)).build();
     }
 
-    public Order completePayment() {
-        return toBuilder().withPayment(payment.pay()).withState(State.PAID).build();
-    }
+    public Order cancel(UUID paymentId) {
+        if (state == State.CANCELLED) {
+            return this;
+        }
 
-    public Order cancel() {
-        return toBuilder().withPayment(payment.fail()).withState(State.CANCELLED).build();
+        return toBuilder().withState(State.CANCELLED).withPayment(Payment.failed(paymentId)).build();
     }
 }

@@ -40,6 +40,12 @@ public class ProductPostgreSqlRepository implements ProductRepository {
     }
 
     @Override
+    public Optional<Product> findByIdForUpdate(UUID id) {
+        return jpaProductRepository.findByIdForUpdate(id)
+                .map(productEntityMapper::toDomain);
+    }
+
+    @Override
     public void updateStock(Product product) {
         jpaProductRepository.updateStock(product.id(), product.totalStock(), product.reservedStock());
     }

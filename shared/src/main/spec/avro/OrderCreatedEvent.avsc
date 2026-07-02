@@ -6,7 +6,6 @@
     {"name": "orderId",    "type": "string"},
     {"name": "productId",  "type": "string"},
     {"name": "quantity",   "type": "int"},
-    {"name": "amount",     "type": "string"},
-    {"name": "paymentId",  "type": "string"}
+    {"name": "amount",     "type": "string"}
   ]
 }

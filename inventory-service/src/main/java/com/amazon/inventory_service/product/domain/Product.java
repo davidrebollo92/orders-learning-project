@@ -18,8 +18,12 @@ public record Product(UUID id, String name, Money price, int totalStock, int res
         return totalStock - reservedStock;
     }
 
+    public boolean hasStockFor(int quantity) {
+        return quantity <= availableStock();
+    }
+
     public Product reserve(int quantity) {
-        if (quantity > availableStock()) throw new InsufficientStockException();
+        if (!hasStockFor(quantity)) throw new InsufficientStockException();
         return toBuilder().withReservedStock(reservedStock + quantity).build();
     }
 
