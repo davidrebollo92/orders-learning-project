@@ -96,17 +96,19 @@ components:
       contentType: application/json
       payload:
         type: object
-        required: [orderId, amount, paymentId]
+        required: [orderId, productId, quantity, amount]
         properties:
           orderId:
             type: string
             format: uuid
+          productId:
+            type: string
+            format: uuid
+          quantity:
+            type: integer
           amount:
             type: string
             description: "Decimal amount as string (e.g. '99.99'). Avro type: string."
-          paymentId:
-            type: string
-            format: uuid
 
     PaymentCompletedEvent:
       name: PaymentCompletedEvent
