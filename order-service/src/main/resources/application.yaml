@@ -37,3 +37,24 @@ spring:
   web:
     error:
       include-stacktrace: never
+resilience4j:
+  circuitbreaker:
+    circuit-breaker-aspect-order: 2
+    instances:
+      inventory:
+        sliding-window-size: 10
+        minimum-number-of-calls: 5
+        failure-rate-threshold: 50
+        wait-duration-in-open-state: 10s
+        record-exceptions:
+          - org.springframework.web.client.ResourceAccessException
+          - org.springframework.web.client.HttpServerErrorException
+  retry:
+    retry-aspect-order: 1
+    instances:
+      inventory:
+        max-attempts: 3
+        wait-duration: 200ms
+        retry-exceptions:
+          - org.springframework.web.client.ResourceAccessException
+          - org.springframework.web.client.HttpServerErrorException
