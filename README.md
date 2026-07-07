@@ -23,7 +23,7 @@ Proyecto Maven multi-módulo con cuatro módulos (Java 21 / Spring Boot 4.0.6):
 - **Idempotencia** — los consumidores detectan y descartan eventos duplicados; constraints `UNIQUE(order_id)` en pagos y reservas como red de seguridad
 - **Dead Letter Topic con persistencia** — tras agotar los reintentos, el evento se persiste en `dead_letter_events` para su inspección y reprocesado manual
 - **Migraciones con Liquibase** — el esquema se gestiona con changelogs versionados; Hibernate solo valida, nunca altera
-- **OpenAPI contract-first** — order-service e inventory-service generan sus interfaces Spring a partir de un `openapi.yaml`
+- **OpenAPI contract-first** — order-service e inventory-service generan sus interfaces Spring a partir de sus specs OpenAPI. inventory-service usa **un spec por bounded context** (`products.yaml` y `reservations.yaml`), cada uno generando en su paquete; `ReservationController` implementa la `ReservationsApi` generada, igual que `ProductController` con `ProductsApi`
 - **AsyncAPI documentation** — order-service y payment-service documentan su mensajería en un `asyncapi.yaml` (AsyncAPI 3.0.0)
 
 ## Flujo
@@ -84,8 +84,9 @@ POST   /reservations   — reservar stock    → 201 / 409 (sin stock) / 404 (pr
 |-----|-------------|
 | `http://localhost:8080/swagger-ui.html` | Swagger UI — order-service |
 | `http://localhost:8080/openapi/openapi.yaml` | Spec OpenAPI — order-service |
-| `http://localhost:8083/swagger-ui.html` | Swagger UI — inventory-service |
-| `http://localhost:8083/openapi/openapi.yaml` | Spec OpenAPI — inventory-service |
+| `http://localhost:8083/swagger-ui.html` | Swagger UI — inventory-service (selector products / reservations) |
+| `http://localhost:8083/openapi/products.yaml` | Spec OpenAPI — inventory products |
+| `http://localhost:8083/openapi/reservations.yaml` | Spec OpenAPI — inventory reservations |
 
 ### AsyncAPI
 
