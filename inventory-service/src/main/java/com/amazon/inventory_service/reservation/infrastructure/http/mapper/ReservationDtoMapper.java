@@ -9,7 +9,7 @@ import org.springframework.stereotype.Component;
 public class ReservationDtoMapper {
 
     public Reservation toDomain(CreateReservationRequest request) {
-        return Reservation.create(request.orderId(), request.productId(), request.quantity());
+        return Reservation.create(request.getOrderId(), request.getProductId(), request.getQuantity());
     }
 
     public ReservationResponse toResponse(Reservation reservation) {
@@ -18,7 +18,7 @@ public class ReservationDtoMapper {
                 reservation.orderId(),
                 reservation.productId(),
                 reservation.quantity(),
-                reservation.state().name()
+                ReservationResponse.StateEnum.fromValue(reservation.state().name())
         );
     }
 }

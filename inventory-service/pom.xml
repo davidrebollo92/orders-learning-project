@@ -94,14 +94,42 @@
                 <version>7.11.0</version>
                 <executions>
                     <execution>
+                        <id>products</id>
                         <goals>
                             <goal>generate</goal>
                         </goals>
                         <configuration>
-                            <inputSpec>${project.basedir}/src/main/resources/static/openapi/openapi.yaml</inputSpec>
+                            <inputSpec>${project.basedir}/src/main/resources/static/openapi/products.yaml</inputSpec>
                             <generatorName>spring</generatorName>
                             <apiPackage>com.amazon.inventory_service.product.infrastructure.http.api</apiPackage>
                             <modelPackage>com.amazon.inventory_service.product.infrastructure.http.dto</modelPackage>
+                            <importMappings>
+
+                                <importMapping>ErrorDto=com.amazon.shared.core.infrastructure.http.ErrorDto</importMapping>
+                            </importMappings>
+                            <schemaMappings>
+
+                                <schemaMapping>ErrorDto=com.amazon.shared.core.infrastructure.http.ErrorDto</schemaMapping>
+                            </schemaMappings>
+                            <configOptions>
+                                <interfaceOnly>true</interfaceOnly>
+                                <useSpringBoot3>true</useSpringBoot3>
+                                <useTags>true</useTags>
+                                <openApiNullable>false</openApiNullable>
+                                <documentationProvider>none</documentationProvider>
+                            </configOptions>
+                        </configuration>
+                    </execution>
+                    <execution>
+                        <id>reservations</id>
+                        <goals>
+                            <goal>generate</goal>
+                        </goals>
+                        <configuration>
+                            <inputSpec>${project.basedir}/src/main/resources/static/openapi/reservations.yaml</inputSpec>
+                            <generatorName>spring</generatorName>
+                            <apiPackage>com.amazon.inventory_service.reservation.infrastructure.http.api</apiPackage>
+                            <modelPackage>com.amazon.inventory_service.reservation.infrastructure.http.dto</modelPackage>
                             <importMappings>
 
                                 <importMapping>ErrorDto=com.amazon.shared.core.infrastructure.http.ErrorDto</importMapping>

@@ -28,6 +28,18 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorDto'
+        '409':
+          description: Insufficient stock to reserve the requested quantity
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorDto'
+        '503':
+          description: Inventory service unavailable (timeout or open circuit breaker)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorDto'
         '500':
           description: Unexpected error
           content:

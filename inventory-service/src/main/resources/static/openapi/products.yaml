@@ -1,6 +1,6 @@
 openapi: 3.0.3
 info:
-  title: Inventory Management API
+  title: Inventory Management API — Products
   description: API for managing products and stock.
   version: "1.0.0"
 paths:

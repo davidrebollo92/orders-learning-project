@@ -13,7 +13,11 @@ app:
       payments-failed: amazon.env.order-management.payments.failed.pub
 springdoc:
   swagger-ui:
-    url: /openapi/openapi.yaml
+    urls:
+      - name: products
+        url: /openapi/products.yaml
+      - name: reservations
+        url: /openapi/reservations.yaml
 spring:
   application:
     name: inventory-service

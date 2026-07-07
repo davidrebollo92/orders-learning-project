@@ -1,0 +1,96 @@
+openapi: 3.0.3
+info:
+  title: Inventory Management API — Reservations
+  description: API for reserving stock for orders.
+  version: "1.0.0"
+paths:
+  /reservations:
+    post:
+      operationId: createReservation
+      tags: [Reservations]
+      summary: Reserve stock for an order
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateReservationRequest'
+      responses:
+        '201':
+          description: Stock reserved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReservationResponse'
+        '400':
+          description: Invalid reservation data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorDto'
+        '404':
+          description: Product not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorDto'
+        '409':
+          description: Insufficient stock, or a reservation already exists for the order
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorDto'
+        '500':
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorDto'
+components:
+  schemas:
+    CreateReservationRequest:
+      type: object
+      required:
+        - orderId
+        - productId
+        - quantity
+      properties:
+        orderId:
+          type: string
+          format: uuid
+        productId:
+          type: string
+          format: uuid
+        quantity:
+          type: integer
+          minimum: 1
+    ReservationResponse:
+      type: object
+      required:
+        - id
+        - orderId
+        - productId
+        - quantity
+        - state
+      properties:
+        id:
+          type: string
+          format: uuid
+        orderId:
+          type: string
+          format: uuid
+        productId:
+          type: string
+          format: uuid
+        quantity:
+          type: integer
+        state:
+          type: string
+          enum: [ PENDING, CONFIRMED, RELEASED ]
+    ErrorDto:
+      type: object
+      properties:
+        message:
+          type: string
+        code:
+          type: string
