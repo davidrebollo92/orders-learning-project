@@ -49,4 +49,45 @@
         </plugins>
     </build>
 
+    <profiles>
+        <!-- Avro schema compatibility check against the Schema Registry.
+             Activated with -Pschema-check (intended for CI, where the registry is up).
+             Locally, ./mvnw install does NOT run it, so it needs no registry. -->
+        <profile>
+            <id>schema-check</id>
+            <properties>
+                <schema.registry.url>http://localhost:8081</schema.registry.url>
+            </properties>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>io.confluent</groupId>
+                        <artifactId>kafka-schema-registry-maven-plugin</artifactId>
+                        <version>${confluent.version}</version>
+                        <configuration>
+                            <schemaRegistryUrls>
+                                <param>${schema.registry.url}</param>
+                            </schemaRegistryUrls>
+                            <!-- Map of registry subject -> local .avsc file (subject = <topic>-value) -->
+                            <subjects>
+                                <amazon.env.order-management.orders.created.pub-value>src/main/spec/avro/OrderCreatedEvent.avsc</amazon.env.order-management.orders.created.pub-value>
+                                <amazon.env.order-management.payments.completed.pub-value>src/main/spec/avro/PaymentCompletedEvent.avsc</amazon.env.order-management.payments.completed.pub-value>
+                                <amazon.env.order-management.payments.failed.pub-value>src/main/spec/avro/PaymentFailedEvent.avsc</amazon.env.order-management.payments.failed.pub-value>
+                            </subjects>
+                        </configuration>
+                        <executions>
+                            <execution>
+                                <id>test-schema-compatibility</id>
+                                <goals>
+                                    <goal>test-compatibility</goal>
+                                </goals>
+                                <phase>verify</phase>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
+
 </project>

@@ -59,6 +59,16 @@ docker compose up -d
 
 Los servicios se construyen y arrancan automáticamente junto con la infraestructura (PostgreSQL × 3 + Kafka + Schema Registry). inventory-service arranca con 3 productos de ejemplo.
 
+### Validación de compatibilidad de schemas
+
+El módulo `shared` incluye un perfil Maven `schema-check` que valida los `.avsc` contra el Schema Registry (compatibilidad de evolución de eventos). Requiere el registry levantado; por eso está apagado por defecto y no afecta al build local:
+
+```bash
+./mvnw -pl shared verify -Pschema-check
+```
+
+Pensado para CI. Queda pendiente como mejora futura el workflow que lo automatice en cada PR.
+
 ## Endpoints
 
 ### order-service (`http://localhost:8080`)
